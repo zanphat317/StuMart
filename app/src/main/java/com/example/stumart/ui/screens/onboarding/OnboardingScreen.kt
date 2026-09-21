@@ -42,14 +42,14 @@ val onboardingPages = listOf(
     ),
     OnboardingPage(
         title = "Đấu giá & Túi mù cực vui",
-        description = "Đặt giá để sở hữu món hời, hoặc thử vận may với túi bí ẩn - phiêu lưu như vịt con! 🦆",
+        description = "Đặt giá để sở hữu món hời hoặc thử vận may với túi mù - phiêu lưu như vịt con! 🦆",
         buttonText = "Tiếp theo →",
         buttonColor = StuMartGreen,
         emoji = "🔨🦆"
     ),
     OnboardingPage(
         title = "Cho tặng & Trao đổi đồ",
-        description = "Đồ không dùng nữa? Cho tặng bạn bè hoặc đổi lấy thứ mình cần. Circular economy thật sự!",
+        description = "Đồ không dùng nữa? Cho tặng bạn bè hoặc đổi lấy thứ mình cần. Tiện ích thật sự!",
         buttonText = "Bắt đầu ngay! 🦆",
         buttonColor = StuMartOrange,
         emoji = "🎁🦆"
@@ -102,6 +102,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                     Box(
                         modifier = Modifier
                             .size(250.dp)
+                            .padding(start = 40.dp)
                             .padding(16.dp),
                         contentAlignment = Alignment.Center
                     ) {
