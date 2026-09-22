@@ -1,19 +1,26 @@
 package com.example.stumart.ui.screens.auth
 
+import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stumart.data.network.RegisterRequest
+import com.example.stumart.data.network.RetrofitClient
 import com.example.stumart.ui.theme.StuMartGreen
 import com.example.stumart.ui.theme.StuMartLightBackground
 import com.example.stumart.ui.theme.StuMartTextDark
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -23,8 +30,16 @@ fun RegisterScreen(
 ) {
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var studentId by remember { mutableStateOf("") }
+    var university by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    
+    var isLoading by remember { mutableStateOf(false) }
+    
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -33,10 +48,12 @@ fun RegisterScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+            Spacer(modifier = Modifier.height(32.dp))
             Text(
                 text = "Đăng Ký",
                 fontSize = 32.sp,
@@ -71,6 +88,36 @@ fun RegisterScreen(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             )
+
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = studentId,
+                onValueChange = { studentId = it },
+                label = { Text("Mã sinh viên") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = university,
+                onValueChange = { university = it },
+                label = { Text("Trường đại học") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            OutlinedTextField(
+                value = phone,
+                onValueChange = { phone = it },
+                label = { Text("Số điện thoại") },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            )
             
             Spacer(modifier = Modifier.height(16.dp))
             
@@ -97,14 +144,57 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             Button(
-                onClick = onRegisterSuccess,
+                onClick = {
+                    if (name.isBlank() || email.isBlank() || password.isBlank() || studentId.isBlank() || university.isBlank() || phone.isBlank()) {
+                        Toast.makeText(context, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    if (password != confirmPassword) {
+                        Toast.makeText(context, "Mật khẩu xác nhận không khớp", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    
+                    isLoading = true
+                    coroutineScope.launch {
+                        try {
+                            val request = RegisterRequest(
+                                email = email,
+                                password = password,
+                                fullName = name,
+                                studentId = studentId,
+                                university = university,
+                                phone = phone
+                            )
+                            val response = RetrofitClient.apiService.register(request)
+                            
+                            if (response.isSuccessful) {
+                                // Parse thành công (dù trả về chuỗi hay JSON)
+                                val responseString = response.body()?.string() ?: ""
+                                Toast.makeText(context, "Đăng ký thành công!", Toast.LENGTH_SHORT).show()
+                                onRegisterSuccess()
+                            } else {
+                                val errorMsg = response.errorBody()?.string() ?: response.message()
+                                Toast.makeText(context, "Lỗi đăng ký: $errorMsg", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                        } finally {
+                            isLoading = false
+                        }
+                    }
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen),
-                shape = RoundedCornerShape(16.dp)
+                shape = RoundedCornerShape(16.dp),
+                enabled = !isLoading
             ) {
-                Text("Tạo Tài Khoản", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                if (isLoading) {
+                    CircularProgressIndicator(color = androidx.compose.ui.graphics.Color.White, modifier = Modifier.size(24.dp))
+                } else {
+                    Text("Tạo Tài Khoản", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
             
             Spacer(modifier = Modifier.height(24.dp))
@@ -118,9 +208,11 @@ fun RegisterScreen(
                     text = "Đăng nhập",
                     color = StuMartGreen,
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { onNavigateToLogin() }
+                    modifier = Modifier.clickable(enabled = !isLoading) { onNavigateToLogin() }
                 )
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }
