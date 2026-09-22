@@ -53,16 +53,7 @@ class MainActivity : ComponentActivity() {
                         onSubmit = { currentScreen = Screen.Login }
                     )
                     Screen.Home -> {
-                        Surface(
-                            modifier = Modifier.fillMaxSize(),
-                            color = Color.White
-                        ) {
-                            Box(
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("Home Screen (Coming Soon)")
-                            }
-                        }
+                        com.example.stumart.ui.screens.home.HomeScreen()
                     }
                 }
             }
