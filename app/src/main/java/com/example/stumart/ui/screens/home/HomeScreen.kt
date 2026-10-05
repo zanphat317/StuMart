@@ -32,7 +32,7 @@ enum class HomeRoute {
 }
 
 @Composable
-fun HomeScreen() {
+fun HomeScreen(onLogout: () -> Unit) {
     var currentRoute by remember { mutableStateOf(HomeRoute.Home) }
     var showPostBottomSheet by remember { mutableStateOf(false) }
 
@@ -51,7 +51,7 @@ fun HomeScreen() {
                 HomeRoute.Home -> HomeTab()
                 HomeRoute.Discount -> DiscountTab()
                 HomeRoute.Live -> LiveTab()
-                HomeRoute.Profile -> ProfileTab()
+                HomeRoute.Profile -> ProfileTab(onLogout = onLogout)
             }
         }
     }

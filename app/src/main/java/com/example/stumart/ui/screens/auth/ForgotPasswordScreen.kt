@@ -60,6 +60,8 @@ fun ForgotPasswordScreen(
     var otp by rememberSaveable { mutableStateOf("") }
     var newPassword by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var passwordError by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmPasswordError by rememberSaveable { mutableStateOf<String?>(null) }
     
     var isLoading by rememberSaveable { mutableStateOf(false) }
     
@@ -161,19 +163,63 @@ fun ForgotPasswordScreen(
                         email = email,
                         otp = otp,
                         onOtpChange = { otp = it },
-                        onNext = { currentStep = ForgotPasswordStep.NEW_PASSWORD }
+                        onNext = { currentStep = ForgotPasswordStep.NEW_PASSWORD },
+                        onResend = {
+                            isLoading = true
+                            coroutineScope.launch {
+                                try {
+                                    val request = ForgotPasswordRequest(email = email)
+                                    val response = RetrofitClient.apiService.forgotPassword(request)
+                                    if (response.isSuccessful) {
+                                        Toast.makeText(context, "Đã gửi lại mã xác thực!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "Lỗi gửi mã: ${response.message()}", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        }
                     )
                 }
                 ForgotPasswordStep.NEW_PASSWORD -> {
                     NewPasswordStepContent(
                         newPassword = newPassword,
-                        onNewPasswordChange = { newPassword = it },
+                        onNewPasswordChange = { 
+                            newPassword = it
+                            passwordError = null
+                        },
                         confirmPassword = confirmPassword,
-                        onConfirmPasswordChange = { confirmPassword = it },
+                        onConfirmPasswordChange = { 
+                            confirmPassword = it
+                            confirmPasswordError = null
+                        },
+                        passwordError = passwordError,
+                        confirmPasswordError = confirmPasswordError,
                         isLoading = isLoading,
                         onSubmit = {
+                            passwordError = null
+                            confirmPasswordError = null
+
                             if (newPassword.isBlank() || confirmPassword.isBlank() || email.isBlank() || otp.isBlank()) {
                                 Toast.makeText(context, "Vui lòng nhập đầy đủ email, otp và mật khẩu mới!", Toast.LENGTH_SHORT).show()
+                                return@NewPasswordStepContent
+                            }
+                            
+                            val hasMinLength = newPassword.length >= 8
+                            val hasUpper = newPassword.any { it.isUpperCase() }
+                            val hasDigit = newPassword.any { it.isDigit() }
+                            val hasSpecial = newPassword.any { !it.isLetterOrDigit() }
+                            
+                            if (!hasMinLength || !hasUpper || !hasDigit || !hasSpecial) {
+                                passwordError = "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt"
+                                return@NewPasswordStepContent
+                            }
+
+                            if (newPassword != confirmPassword) {
+                                confirmPasswordError = "Mật khẩu xác nhận không khớp"
                                 return@NewPasswordStepContent
                             }
                             
@@ -372,8 +418,20 @@ fun OtpStepContent(
     email: String,
     otp: String,
     onOtpChange: (String) -> Unit,
-    onNext: () -> Unit
+    onNext: () -> Unit,
+    onResend: () -> Unit
 ) {
+    var timeLeft by remember { mutableStateOf(300) } // 300 giây = 5 phút
+
+    LaunchedEffect(timeLeft) {
+        if (timeLeft > 0) {
+            kotlinx.coroutines.delay(1000L)
+            timeLeft -= 1
+        }
+    }
+
+    val formattedTime = java.lang.String.format(java.util.Locale.getDefault(), "%02d:%02d", timeLeft / 60, timeLeft % 60)
+
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
             text = "Nhập mã xác thực",
@@ -450,13 +508,14 @@ fun OtpStepContent(
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = buildAnnotatedString {
                     append("Mã có hiệu lực trong ")
                     withStyle(style = SpanStyle(color = StuMartOrange, fontWeight = FontWeight.Bold)) {
-                        append("01:48")
+                        append(formattedTime)
                     }
                 },
                 fontSize = 13.sp,
@@ -467,7 +526,13 @@ fun OtpStepContent(
                 text = "Gửi lại mã",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Gray // Or light blue depending on design
+                color = if (timeLeft == 0) StuMartGreen else Color.Gray,
+                modifier = Modifier
+                    .clickable(enabled = timeLeft == 0) {
+                        timeLeft = 300 // Reset lại thời gian 5 phút
+                        onResend()
+                    }
+                    .padding(4.dp)
             )
         }
 
@@ -504,6 +569,8 @@ fun NewPasswordStepContent(
     onNewPasswordChange: (String) -> Unit,
     confirmPassword: String,
     onConfirmPasswordChange: (String) -> Unit,
+    passwordError: String?,
+    confirmPasswordError: String?,
     isLoading: Boolean,
     onSubmit: () -> Unit
 ) {
@@ -565,7 +632,13 @@ fun NewPasswordStepContent(
             },
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            singleLine = true
+            singleLine = true,
+            isError = passwordError != null,
+            supportingText = {
+                if (passwordError != null) {
+                    Text(passwordError, color = Color.Red)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -598,7 +671,13 @@ fun NewPasswordStepContent(
             },
             visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            singleLine = true
+            singleLine = true,
+            isError = confirmPasswordError != null,
+            supportingText = {
+                if (confirmPasswordError != null) {
+                    Text(confirmPasswordError, color = Color.Red)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -612,7 +691,7 @@ fun NewPasswordStepContent(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = "Ít nhất 8 ký tự, gồm chữ hoa và số",
+                text = "Ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt",
                 fontSize = 13.sp,
                 color = StuMartTextGray
             )
@@ -627,7 +706,7 @@ fun NewPasswordStepContent(
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen),
             shape = RoundedCornerShape(16.dp),
-            enabled = newPassword.isNotBlank() && newPassword == confirmPassword && !isLoading
+            enabled = !isLoading
         ) {
             if (isLoading) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))

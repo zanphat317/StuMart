@@ -36,6 +36,8 @@ fun RegisterScreen(
     var phone by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var passwordError by rememberSaveable { mutableStateOf<String?>(null) }
+    var confirmPasswordError by rememberSaveable { mutableStateOf<String?>(null) }
     
     var isLoading by remember { mutableStateOf(false) }
     
@@ -124,22 +126,40 @@ fun RegisterScreen(
             
             OutlinedTextField(
                 value = password,
-                onValueChange = { password = it },
+                onValueChange = { 
+                    password = it
+                    passwordError = null
+                },
                 label = { Text("Mật khẩu") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                isError = passwordError != null,
+                supportingText = {
+                    if (passwordError != null) {
+                        Text(passwordError!!, color = androidx.compose.ui.graphics.Color.Red)
+                    }
+                }
             )
             
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
                 value = confirmPassword,
-                onValueChange = { confirmPassword = it },
+                onValueChange = { 
+                    confirmPassword = it
+                    confirmPasswordError = null
+                },
                 label = { Text("Xác nhận mật khẩu") },
                 visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                isError = confirmPasswordError != null,
+                supportingText = {
+                    if (confirmPasswordError != null) {
+                        Text(confirmPasswordError!!, color = androidx.compose.ui.graphics.Color.Red)
+                    }
+                }
             )
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -150,8 +170,22 @@ fun RegisterScreen(
                         Toast.makeText(context, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
+                    
+                    passwordError = null
+                    confirmPasswordError = null
+
+                    val hasMinLength = password.length >= 8
+                    val hasUpper = password.any { it.isUpperCase() }
+                    val hasDigit = password.any { it.isDigit() }
+                    val hasSpecial = password.any { !it.isLetterOrDigit() }
+                    
+                    if (!hasMinLength || !hasUpper || !hasDigit || !hasSpecial) {
+                        passwordError = "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt"
+                        return@Button
+                    }
+                    
                     if (password != confirmPassword) {
-                        Toast.makeText(context, "Mật khẩu xác nhận không khớp", Toast.LENGTH_SHORT).show()
+                        confirmPasswordError = "Mật khẩu xác nhận không khớp"
                         return@Button
                     }
                     

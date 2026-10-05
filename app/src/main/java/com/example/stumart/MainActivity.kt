@@ -54,7 +54,9 @@ class MainActivity : ComponentActivity() {
                         onSubmit = { currentScreen = Screen.Login }
                     )
                     Screen.Home -> {
-                        com.example.stumart.ui.screens.home.HomeScreen()
+                        com.example.stumart.ui.screens.home.HomeScreen(
+                            onLogout = { currentScreen = Screen.Login }
+                        )
                     }
                 }
             }

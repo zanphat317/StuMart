@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.sp
 import com.example.stumart.ui.theme.*
 
 @Composable
-fun ProfileTab() {
+fun ProfileTab(onLogout: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -217,6 +217,23 @@ fun ProfileTab() {
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
+            }
+
+            // 5. Nút Đăng xuất
+            item {
+                Column(modifier = Modifier.padding(horizontal = 16.dp).offset(y = (-40).dp)) {
+                    Spacer(modifier = Modifier.height(32.dp))
+                    Button(
+                        onClick = onLogout,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), // Màu đỏ đẹp
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("Đăng xuất", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
             }
         }
     }
