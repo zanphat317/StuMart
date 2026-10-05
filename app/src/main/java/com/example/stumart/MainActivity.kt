@@ -12,6 +12,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import com.example.stumart.ui.screens.auth.ForgotPasswordScreen
 import com.example.stumart.ui.screens.auth.LoginScreen
 import com.example.stumart.ui.screens.auth.RegisterScreen
@@ -34,7 +35,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             StuMartTheme {
-                var currentScreen by remember { mutableStateOf(Screen.Splash) }
+                var currentScreen by rememberSaveable { mutableStateOf(Screen.Splash) }
 
                 when (currentScreen) {
                     Screen.Splash -> SplashScreen(onSplashFinished = { currentScreen = Screen.Onboarding })

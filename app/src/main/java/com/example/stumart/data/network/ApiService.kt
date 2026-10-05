@@ -8,4 +8,13 @@ import okhttp3.ResponseBody
 interface ApiService {
     @POST("register")
     suspend fun register(@Body request: RegisterRequest): Response<ResponseBody>
+
+    @POST("forgot-password")
+    suspend fun forgotPassword(@Body request: ForgotPasswordRequest): Response<ResponseBody>
+
+    @POST("reset-password")
+    suspend fun resetPassword(@Body request: ResetPasswordRequest): Response<ResponseBody>
+
+    @POST("login")
+    suspend fun login(@Body request: LoginRequest): Response<LoginResponse>
 }
