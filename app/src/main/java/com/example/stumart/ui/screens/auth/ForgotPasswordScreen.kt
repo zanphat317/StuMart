@@ -36,9 +36,9 @@ import android.widget.Toast
 import android.util.Log
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
-import com.example.stumart.data.network.ForgotPasswordRequest
-import com.example.stumart.data.network.ResetPasswordRequest
-import com.example.stumart.data.network.RetrofitClient
+import com.example.stumart.data.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.OtpType
 import com.example.stumart.ui.theme.StuMartGreen
 import com.example.stumart.ui.theme.StuMartLightBackground
 import com.example.stumart.ui.theme.StuMartOrange
@@ -139,18 +139,11 @@ fun ForgotPasswordScreen(
                             isLoading = true
                             coroutineScope.launch {
                                 try {
-                                    val request = ForgotPasswordRequest(email = email)
-                                    val response = RetrofitClient.apiService.forgotPassword(request)
-                                    
-                                    if (response.isSuccessful) {
-                                        Toast.makeText(context, "Mã xác thực đã được gửi", Toast.LENGTH_SHORT).show()
-                                        currentStep = ForgotPasswordStep.OTP
-                                    } else {
-                                        val errorMsg = response.errorBody()?.string() ?: response.message()
-                                        Toast.makeText(context, "Lỗi: $errorMsg", Toast.LENGTH_LONG).show()
-                                    }
+                                    SupabaseClient.client.auth.resetPasswordForEmail(email = email.trim())
+                                    Toast.makeText(context, "Đã gửi mã xác thực về email!", Toast.LENGTH_SHORT).show()
+                                    currentStep = ForgotPasswordStep.OTP
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Lỗi gửi mail: ${e.message}", Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoading = false
                                 }
@@ -163,18 +156,34 @@ fun ForgotPasswordScreen(
                         email = email,
                         otp = otp,
                         onOtpChange = { otp = it },
-                        onNext = { currentStep = ForgotPasswordStep.NEW_PASSWORD },
+                        onNext = {
+                            if (otp.length < 6) {
+                                Toast.makeText(context, "Vui lòng nhập đủ 6 số OTP", Toast.LENGTH_SHORT).show()
+                                return@OtpStepContent
+                            }
+                            isLoading = true
+                            coroutineScope.launch {
+                                try {
+                                    SupabaseClient.client.auth.verifyEmailOtp(
+                                        type = OtpType.Email.RECOVERY,
+                                        email = email.trim(),
+                                        token = otp.trim()
+                                    )
+                                    Toast.makeText(context, "Mã OTP hợp lệ!", Toast.LENGTH_SHORT).show()
+                                    currentStep = ForgotPasswordStep.NEW_PASSWORD
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Mã OTP không đúng hoặc đã hết hạn: ${e.message}", Toast.LENGTH_LONG).show()
+                                } finally {
+                                    isLoading = false
+                                }
+                            }
+                        },
                         onResend = {
                             isLoading = true
                             coroutineScope.launch {
                                 try {
-                                    val request = ForgotPasswordRequest(email = email)
-                                    val response = RetrofitClient.apiService.forgotPassword(request)
-                                    if (response.isSuccessful) {
-                                        Toast.makeText(context, "Đã gửi lại mã xác thực!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "Lỗi gửi mã: ${response.message()}", Toast.LENGTH_SHORT).show()
-                                    }
+                                    SupabaseClient.client.auth.resetPasswordForEmail(email = email.trim())
+                                    Toast.makeText(context, "Đã gửi lại mã xác thực về email!", Toast.LENGTH_SHORT).show()
                                 } catch (e: Exception) {
                                     Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_SHORT).show()
                                 } finally {
@@ -226,24 +235,13 @@ fun ForgotPasswordScreen(
                             isLoading = true
                             coroutineScope.launch {
                                 try {
-                                    Log.d("DEBUG_RESET", "Email: '\$email' | OTP: '\$otp' | Password: '\$newPassword'")
-                                    
-                                    val request = ResetPasswordRequest(
-                                        email = email,
-                                        otp = otp,
-                                        newPassword = newPassword
-                                    )
-                                    val response = RetrofitClient.apiService.resetPassword(request)
-                                    
-                                    if (response.isSuccessful) {
-                                        Toast.makeText(context, "Đổi mật khẩu thành công!", Toast.LENGTH_SHORT).show()
-                                        onSubmit() // Gọi callback quay về trang đăng nhập
-                                    } else {
-                                        val errorMsg = response.errorBody()?.string() ?: response.message()
-                                        Toast.makeText(context, "Lỗi: $errorMsg", Toast.LENGTH_LONG).show()
+                                    SupabaseClient.client.auth.updateUser {
+                                        password = newPassword
                                     }
+                                    Toast.makeText(context, "Đổi mật khẩu thành công!", Toast.LENGTH_SHORT).show()
+                                    onSubmit() // Gọi callback quay về trang đăng nhập
                                 } catch (e: Exception) {
-                                    Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Lỗi cập nhật mật khẩu: ${e.message}", Toast.LENGTH_LONG).show()
                                 } finally {
                                     isLoading = false
                                 }

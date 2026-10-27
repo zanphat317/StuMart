@@ -32,7 +32,12 @@ enum class HomeRoute {
 }
 
 @Composable
-fun HomeScreen(onLogout: () -> Unit) {
+fun HomeScreen(
+    userName: String = "Khoa Mai Dang",
+    userUniversity: String = "ĐH Bách Khoa Hà Nội",
+    onUniversityChange: (String) -> Unit = {},
+    onLogout: () -> Unit
+) {
     var currentRoute by remember { mutableStateOf(HomeRoute.Home) }
     var showPostBottomSheet by remember { mutableStateOf(false) }
 
@@ -48,10 +53,15 @@ fun HomeScreen(onLogout: () -> Unit) {
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             when (currentRoute) {
-                HomeRoute.Home -> HomeTab()
+                HomeRoute.Home -> HomeTab(userUniversity = userUniversity)
                 HomeRoute.Discount -> DiscountTab()
                 HomeRoute.Live -> LiveTab()
-                HomeRoute.Profile -> ProfileTab(onLogout = onLogout)
+                HomeRoute.Profile -> ProfileTab(
+                    userName = userName,
+                    userUniversity = userUniversity,
+                    onUniversityChange = onUniversityChange,
+                    onLogout = onLogout
+                )
             }
         }
     }

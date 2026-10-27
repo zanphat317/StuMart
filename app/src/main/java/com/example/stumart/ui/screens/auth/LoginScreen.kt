@@ -12,14 +12,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
-import com.example.stumart.data.network.LoginRequest
-import com.example.stumart.data.network.RetrofitClient
+import com.example.stumart.data.supabase.SupabaseClient
+import com.example.stumart.data.supabase.UserProfile
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import com.example.stumart.ui.theme.StuMartGreen
 import com.example.stumart.ui.theme.StuMartLightBackground
 import com.example.stumart.ui.theme.StuMartOrange
@@ -28,12 +37,13 @@ import com.example.stumart.ui.theme.StuMartTextDark
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (name: String, university: String) -> Unit,
     onNavigateToRegister: () -> Unit,
     onNavigateToForgotPassword: () -> Unit
 ) {
-    var email by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
+    var emailInput by rememberSaveable { mutableStateOf("") }
+    var passwordInput by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
     var isLoading by rememberSaveable { mutableStateOf(false) }
 
     val context = LocalContext.current
@@ -68,8 +78,8 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = emailInput,
+                onValueChange = { emailInput = it },
                 label = { Text("Email sinh viên") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -78,12 +88,21 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
+                value = passwordInput,
+                onValueChange = { passwordInput = it },
                 label = { Text("Mật khẩu") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
+                            tint = Color.Gray
+                        )
+                    }
+                }
             )
             
             Spacer(modifier = Modifier.height(8.dp))
@@ -104,7 +123,7 @@ fun LoginScreen(
             
             Button(
                 onClick = {
-                    if (email.isBlank() || password.isBlank()) {
+                    if (emailInput.isBlank() || passwordInput.isBlank()) {
                         Toast.makeText(context, "Vui lòng nhập đầy đủ email và mật khẩu", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
@@ -112,16 +131,37 @@ fun LoginScreen(
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            val response = RetrofitClient.apiService.login(LoginRequest(email.trim(), password))
-                            
-                            if (response.isSuccessful && response.body()?.status == "success") {
-                                Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
-                                onLoginSuccess()
-                            } else {
-                                Toast.makeText(context, "Tài khoản hoặc mật khẩu không đúng!", Toast.LENGTH_SHORT).show()
+                            SupabaseClient.client.auth.signInWith(Email) {
+                                this.email = emailInput.trim()
+                                this.password = passwordInput
                             }
+                            
+                            var fetchedName = "Sinh viên StuMart"
+                            var fetchedUni = "Trường Đại học Công nghệ Thông tin (ĐHQG-HCM)"
+                            
+                            try {
+                                val userEmail = emailInput.trim()
+                                val profile = SupabaseClient.client.postgrest["profiles"]
+                                    .select { filter { eq("email", userEmail) } }
+                                    .decodeSingleOrNull<UserProfile>()
+                                    
+                                if (profile != null) {
+                                    if (!profile.fullName.isNullOrBlank()) fetchedName = profile.fullName
+                                    if (!profile.university.isNullOrBlank()) fetchedUni = profile.university
+                                }
+                            } catch (e: Exception) {
+                                val currentUser = SupabaseClient.client.auth.currentUserOrNull()
+                                val metadata = currentUser?.userMetadata
+                                val metaName = metadata?.get("full_name")?.jsonPrimitive?.contentOrNull
+                                val metaUni = metadata?.get("university")?.jsonPrimitive?.contentOrNull
+                                if (!metaName.isNullOrBlank()) fetchedName = metaName
+                                if (!metaUni.isNullOrBlank()) fetchedUni = metaUni
+                            }
+                            
+                            Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                            onLoginSuccess(fetchedName, fetchedUni)
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Lỗi kết nối máy chủ: ${e.message}", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Lỗi đăng nhập: ${e.message}", Toast.LENGTH_LONG).show()
                         } finally {
                             isLoading = false
                         }

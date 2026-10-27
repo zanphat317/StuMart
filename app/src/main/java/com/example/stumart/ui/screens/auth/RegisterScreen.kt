@@ -1,5 +1,6 @@
 package com.example.stumart.ui.screens.auth
 
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -12,30 +13,41 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.stumart.data.network.RegisterRequest
-import com.example.stumart.data.network.RetrofitClient
+import com.example.stumart.data.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.gotrue.providers.builtin.Email
 import com.example.stumart.ui.theme.StuMartGreen
 import com.example.stumart.ui.theme.StuMartLightBackground
 import com.example.stumart.ui.theme.StuMartTextDark
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RegisterScreen(
-    onRegisterSuccess: () -> Unit,
+    onRegisterSuccess: (name: String, university: String) -> Unit,
     onNavigateToLogin: () -> Unit
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var email by rememberSaveable { mutableStateOf("") }
-    var studentId by rememberSaveable { mutableStateOf("") }
-    var university by rememberSaveable { mutableStateOf("") }
-    var phone by rememberSaveable { mutableStateOf("") }
-    var password by rememberSaveable { mutableStateOf("") }
-    var confirmPassword by rememberSaveable { mutableStateOf("") }
+    var inputName by rememberSaveable { mutableStateOf("") }
+    var inputEmail by rememberSaveable { mutableStateOf("") }
+    var inputStudentId by rememberSaveable { mutableStateOf("") }
+    var inputUniversity by rememberSaveable { mutableStateOf("") }
+    var inputPhone by rememberSaveable { mutableStateOf("") }
+    var inputPassword by rememberSaveable { mutableStateOf("") }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var inputConfirmPassword by rememberSaveable { mutableStateOf("") }
+    var confirmPasswordVisible by rememberSaveable { mutableStateOf(false) }
     var passwordError by rememberSaveable { mutableStateOf<String?>(null) }
     var confirmPasswordError by rememberSaveable { mutableStateOf<String?>(null) }
     
@@ -75,8 +87,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(32.dp))
             
             OutlinedTextField(
-                value = name,
-                onValueChange = { name = it },
+                value = inputName,
+                onValueChange = { inputName = it },
                 label = { Text("Họ và tên") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -85,8 +97,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
+                value = inputEmail,
+                onValueChange = { inputEmail = it },
                 label = { Text("Email sinh viên (@edu.vn)") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -95,8 +107,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = studentId,
-                onValueChange = { studentId = it },
+                value = inputStudentId,
+                onValueChange = { inputStudentId = it },
                 label = { Text("Mã sinh viên") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -105,8 +117,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = university,
-                onValueChange = { university = it },
+                value = inputUniversity,
+                onValueChange = { inputUniversity = it },
                 label = { Text("Trường đại học") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -115,8 +127,8 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = phone,
-                onValueChange = { phone = it },
+                value = inputPhone,
+                onValueChange = { inputPhone = it },
                 label = { Text("Số điện thoại") },
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
@@ -125,15 +137,24 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
             
             OutlinedTextField(
-                value = password,
+                value = inputPassword,
                 onValueChange = { 
-                    password = it
+                    inputPassword = it
                     passwordError = null
                 },
                 label = { Text("Mật khẩu") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(
+                            imageVector = if (passwordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (passwordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
+                            tint = Color.Gray
+                        )
+                    }
+                },
                 isError = passwordError != null,
                 supportingText = {
                     if (passwordError != null) {
@@ -145,19 +166,28 @@ fun RegisterScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = confirmPassword,
+                value = inputConfirmPassword,
                 onValueChange = { 
-                    confirmPassword = it
+                    inputConfirmPassword = it
                     confirmPasswordError = null
                 },
                 label = { Text("Xác nhận mật khẩu") },
-                visualTransformation = PasswordVisualTransformation(),
+                visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp),
+                trailingIcon = {
+                    IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        Icon(
+                            imageVector = if (confirmPasswordVisible) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                            contentDescription = if (confirmPasswordVisible) "Ẩn mật khẩu" else "Hiện mật khẩu",
+                            tint = Color.Gray
+                        )
+                    }
+                },
                 isError = confirmPasswordError != null,
                 supportingText = {
                     if (confirmPasswordError != null) {
-                        Text(confirmPasswordError!!, color = androidx.compose.ui.graphics.Color.Red)
+                        Text(confirmPasswordError!!, color = Color.Red)
                     }
                 }
             )
@@ -166,7 +196,7 @@ fun RegisterScreen(
             
             Button(
                 onClick = {
-                    if (name.isBlank() || email.isBlank() || password.isBlank() || studentId.isBlank() || university.isBlank() || phone.isBlank()) {
+                    if (inputName.isBlank() || inputEmail.isBlank() || inputPassword.isBlank() || inputStudentId.isBlank() || inputUniversity.isBlank() || inputPhone.isBlank()) {
                         Toast.makeText(context, "Vui lòng nhập đầy đủ thông tin", Toast.LENGTH_SHORT).show()
                         return@Button
                     }
@@ -174,17 +204,17 @@ fun RegisterScreen(
                     passwordError = null
                     confirmPasswordError = null
 
-                    val hasMinLength = password.length >= 8
-                    val hasUpper = password.any { it.isUpperCase() }
-                    val hasDigit = password.any { it.isDigit() }
-                    val hasSpecial = password.any { !it.isLetterOrDigit() }
+                    val hasMinLength = inputPassword.length >= 8
+                    val hasUpper = inputPassword.any { it.isUpperCase() }
+                    val hasDigit = inputPassword.any { it.isDigit() }
+                    val hasSpecial = inputPassword.any { !it.isLetterOrDigit() }
                     
                     if (!hasMinLength || !hasUpper || !hasDigit || !hasSpecial) {
                         passwordError = "Mật khẩu phải có ít nhất 8 ký tự, gồm chữ hoa, số và ký tự đặc biệt"
                         return@Button
                     }
                     
-                    if (password != confirmPassword) {
+                    if (inputPassword != inputConfirmPassword) {
                         confirmPasswordError = "Mật khẩu xác nhận không khớp"
                         return@Button
                     }
@@ -192,27 +222,27 @@ fun RegisterScreen(
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            val request = RegisterRequest(
-                                email = email,
-                                password = password,
-                                fullName = name,
-                                studentId = studentId,
-                                university = university,
-                                phone = phone
-                            )
-                            val response = RetrofitClient.apiService.register(request)
+                            val userEmail = inputEmail.trim()
+                            val userPassword = inputPassword
                             
-                            if (response.isSuccessful) {
-                                // Parse thành công (dù trả về chuỗi hay JSON)
-                                val responseString = response.body()?.string() ?: ""
-                                Toast.makeText(context, "Đăng ký thành công!", Toast.LENGTH_SHORT).show()
-                                onRegisterSuccess()
-                            } else {
-                                val errorMsg = response.errorBody()?.string() ?: response.message()
-                                Toast.makeText(context, "Lỗi đăng ký: $errorMsg", Toast.LENGTH_LONG).show()
+                            Log.d("AUTH_CHECK", "Email sap dang ky: $userEmail")
+                            
+                            // Gọi hàm signUpWith của Supabase
+                            SupabaseClient.client.auth.signUpWith(Email) {
+                                this.email = userEmail
+                                this.password = userPassword
+                                this.data = buildJsonObject {
+                                    put("full_name", inputName)
+                                    put("student_id", inputStudentId)
+                                    put("university", inputUniversity)
+                                    put("phone", inputPhone)
+                                }
                             }
+                            
+                            Toast.makeText(context, "Đăng ký thành công!", Toast.LENGTH_SHORT).show()
+                            onRegisterSuccess(inputName, inputUniversity)
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                            Toast.makeText(context, "Lỗi đăng ký: ${e.message}", Toast.LENGTH_LONG).show()
                         } finally {
                             isLoading = false
                         }

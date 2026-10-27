@@ -3,6 +3,7 @@ package com.example.stumart.ui.screens.home.tabs
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -14,6 +15,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,7 +30,25 @@ import androidx.compose.ui.unit.sp
 import com.example.stumart.ui.theme.*
 
 @Composable
-fun ProfileTab(onLogout: () -> Unit = {}) {
+fun ProfileTab(
+    userName: String,
+    userUniversity: String,
+    onUniversityChange: (String) -> Unit,
+    onLogout: () -> Unit = {}
+) {
+    var showEditProfileDialog by remember { mutableStateOf(false) }
+
+    if (showEditProfileDialog) {
+        EditProfileDialog(
+            currentUniversity = userUniversity,
+            onDismiss = { showEditProfileDialog = false },
+            onSave = { newUni ->
+                onUniversityChange(newUni)
+                showEditProfileDialog = false
+            }
+        )
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -62,7 +85,8 @@ fun ProfileTab(onLogout: () -> Unit = {}) {
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f)),
+                                .background(Color.White.copy(alpha = 0.2f))
+                                .clickable { showEditProfileDialog = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White, modifier = Modifier.size(20.dp))
@@ -113,9 +137,9 @@ fun ProfileTab(onLogout: () -> Unit = {}) {
                             Spacer(modifier = Modifier.width(16.dp))
                             
                             Column {
-                                Text("Nguyễn Minh Tuấn", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
+                                Text(userName, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
                                 Spacer(modifier = Modifier.height(4.dp))
-                                Text("ĐH Bách Khoa HN • K68", fontSize = 12.sp, color = StuMartTextGray)
+                                Text(userUniversity, fontSize = 12.sp, color = StuMartTextGray)
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text("⭐⭐⭐⭐⭐", fontSize = 10.sp)
@@ -273,6 +297,87 @@ fun BadgeItem(emoji: String, label: String, borderColor: Color) {
         Spacer(modifier = Modifier.height(8.dp))
         Text(label, fontSize = 12.sp, color = StuMartTextDark)
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditProfileDialog(
+    currentUniversity: String,
+    onDismiss: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    var university by remember { mutableStateOf(currentUniversity) }
+    var expanded by remember { mutableStateOf(false) }
+
+    val universities = listOf(
+        "ĐH Bách Khoa TP.HCM (ĐHQG-HCM)",
+        "ĐH Khoa học Tự nhiên TP.HCM (ĐHQG-HCM)",
+        "Trường Đại học Công nghệ Thông tin (ĐHQG-HCM)",
+        "ĐH Khoa học Xã hội và Nhân văn TP.HCM (ĐHQG-HCM)",
+        "ĐH Kinh tế - Luật TP.HCM (ĐHQG-HCM)",
+        "Trường Đại học Quốc tế (ĐHQG-HCM)",
+        "ĐH An Giang (ĐHQG-HCM)"
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Đổi trường học/Khu vực", fontWeight = FontWeight.Bold, color = StuMartGreen)
+        },
+        text = {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(text = "Trường học/Khu vực", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Spacer(modifier = Modifier.height(8.dp))
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { expanded = !expanded }
+                ) {
+                    OutlinedTextField(
+                        value = university,
+                        onValueChange = { university = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(),
+                        readOnly = false, // Cho phép gõ để lọc hoặc nhập trường khác
+                        placeholder = { Text("Chọn hoặc nhập trường") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        },
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false },
+                        modifier = Modifier.heightIn(max = 250.dp) // Giới hạn chiều cao danh sách
+                    ) {
+                        val filteredList = if (university.isBlank()) universities else universities.filter { it.contains(university, ignoreCase = true) }
+                        filteredList.forEach { selectionOption ->
+                            DropdownMenuItem(
+                                text = { Text(selectionOption) },
+                                onClick = {
+                                    university = selectionOption
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(university) },
+                colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen)
+            ) {
+                Text("Lưu lại")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = Color.Gray)
+            }
+        }
+    )
 }
 
 data class MyProduct(val title: String, val price: String, val views: String, val likes: String)

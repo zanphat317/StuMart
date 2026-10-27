@@ -23,7 +23,7 @@ import com.example.stumart.ui.theme.StuMartTextGray
 import com.example.stumart.ui.theme.StuMartYellow
 
 @Composable
-fun HomeTab() {
+fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -51,7 +51,7 @@ fun HomeTab() {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("📍 ", fontSize = 14.sp)
                             Text(
-                                text = "ĐH Bách Khoa Hà Nội",
+                                text = userUniversity,
                                 color = StuMartYellow,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium

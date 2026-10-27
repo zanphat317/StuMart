@@ -36,17 +36,27 @@ class MainActivity : ComponentActivity() {
         setContent {
             StuMartTheme {
                 var currentScreen by rememberSaveable { mutableStateOf(Screen.Splash) }
+                var userName by rememberSaveable { mutableStateOf("Sinh viên StuMart") }
+                var userUniversity by rememberSaveable { mutableStateOf("ĐH Bách Khoa TP.HCM (ĐHQG-HCM)") }
 
                 when (currentScreen) {
                     Screen.Splash -> SplashScreen(onSplashFinished = { currentScreen = Screen.Onboarding })
                     Screen.Onboarding -> OnboardingScreen(onFinish = { currentScreen = Screen.Login })
                     Screen.Login -> LoginScreen(
-                        onLoginSuccess = { currentScreen = Screen.Home },
+                        onLoginSuccess = { name, uni ->
+                            userName = name
+                            userUniversity = uni
+                            currentScreen = Screen.Home
+                        },
                         onNavigateToRegister = { currentScreen = Screen.Register },
                         onNavigateToForgotPassword = { currentScreen = Screen.ForgotPassword }
                     )
                     Screen.Register -> RegisterScreen(
-                        onRegisterSuccess = { currentScreen = Screen.Home },
+                        onRegisterSuccess = { name, uni ->
+                            userName = name
+                            userUniversity = uni
+                            currentScreen = Screen.Home
+                        },
                         onNavigateToLogin = { currentScreen = Screen.Login }
                     )
                     Screen.ForgotPassword -> ForgotPasswordScreen(
@@ -55,6 +65,9 @@ class MainActivity : ComponentActivity() {
                     )
                     Screen.Home -> {
                         com.example.stumart.ui.screens.home.HomeScreen(
+                            userName = userName,
+                            userUniversity = userUniversity,
+                            onUniversityChange = { userUniversity = it },
                             onLogout = { currentScreen = Screen.Login }
                         )
                     }
