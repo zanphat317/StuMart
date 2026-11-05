@@ -10,7 +10,8 @@ data class UserProfile(
     @SerialName("full_name") val fullName: String? = null,
     @SerialName("student_id") val studentId: String? = null,
     val university: String? = null,
-    val phone: String? = null
+    val phone: String? = null,
+    val interests: List<String>? = null
 )
 
 @Serializable
@@ -21,5 +22,6 @@ data class Post(
     val price: Double,
     val condition: String,
     val description: String,
+    val category: String? = "Khác", // Danh mục sản phẩm (VD: Sách/Giáo trình, Đồ điện tử...)
     @SerialName("user_id") val userId: String? = null // Liên kết đến người đăng
 )

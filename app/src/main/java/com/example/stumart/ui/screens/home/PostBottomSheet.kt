@@ -44,6 +44,7 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
     var description by remember { mutableStateOf("") }
     
     var selectedType by remember { mutableStateOf("Bán thường") }
+    var selectedCategory by remember { mutableStateOf("Sách/Giáo trình") }
     var isLoading by remember { mutableStateOf(false) }
     
     // Quản lý danh sách ảnh (Uris)
@@ -95,6 +96,29 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
             item { PostTypeChip(icon = "🎁", label = "Cho tặng", isSelected = selectedType == "Cho tặng", onClick = { selectedType = "Cho tặng" }) }
             item { PostTypeChip(icon = "🔨", label = "Đấu giá", isSelected = selectedType == "Đấu giá", onClick = { selectedType = "Đấu giá" }) }
             item { PostTypeChip(icon = "❓", label = "Túi mù", isSelected = selectedType == "Túi mù", onClick = { selectedType = "Túi mù" }) }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Danh mục sản phẩm
+        Text("Danh mục sản phẩm", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = StuMartTextDark)
+        Spacer(modifier = Modifier.height(8.dp))
+        val categoriesList = listOf(
+            "Sách/Giáo trình", "Đồ điện tử", "Thời trang/Phụ kiện", "Đồ gia dụng", "Nội thất", "Xe cộ", "Khác"
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(categoriesList.size) { index ->
+                val cat = categoriesList[index]
+                FilterChip(
+                    selected = selectedCategory == cat,
+                    onClick = { selectedCategory = cat },
+                    label = { Text(cat, fontSize = 12.sp) },
+                    colors = FilterChipDefaults.filterChipColors(
+                        selectedContainerColor = StuMartGreen,
+                        selectedLabelColor = Color.White
+                    )
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -244,7 +268,8 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                             type = selectedType,
                             price = priceValue,
                             condition = condition,
-                            description = description
+                            description = description,
+                            category = selectedCategory
                         )
                         SupabaseClient.client.postgrest["posts"].insert(newPost)
                         
