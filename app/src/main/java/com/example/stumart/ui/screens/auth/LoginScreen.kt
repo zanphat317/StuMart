@@ -19,6 +19,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
@@ -131,18 +132,22 @@ fun LoginScreen(
                     isLoading = true
                     coroutineScope.launch {
                         try {
+                            val cleanEmail = emailInput.trim().lowercase()
+                            val cleanPassword = passwordInput
+                            
+                            Log.d("AUTH_DEBUG", "Thu dang nhap voi email: '$cleanEmail'")
+                            
                             SupabaseClient.client.auth.signInWith(Email) {
-                                this.email = emailInput.trim()
-                                this.password = passwordInput
+                                this.email = cleanEmail
+                                this.password = cleanPassword
                             }
                             
                             var fetchedName = "Sinh viên StuMart"
                             var fetchedUni = "Trường Đại học Công nghệ Thông tin (ĐHQG-HCM)"
                             
                             try {
-                                val userEmail = emailInput.trim()
                                 val profile = SupabaseClient.client.postgrest["profiles"]
-                                    .select { filter { eq("email", userEmail) } }
+                                    .select { filter { eq("email", cleanEmail) } }
                                     .decodeSingleOrNull<UserProfile>()
                                     
                                 if (profile != null) {
@@ -161,7 +166,18 @@ fun LoginScreen(
                             Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
                             onLoginSuccess(fetchedName, fetchedUni)
                         } catch (e: Exception) {
-                            Toast.makeText(context, "Lỗi đăng nhập: ${e.message}", Toast.LENGTH_LONG).show()
+                            Log.e("AUTH_DEBUG", "Loi dang nhap: ${e.message}", e)
+                            val msg = e.message ?: ""
+                            val userFriendlyMsg = when {
+                                msg.contains("Invalid login credentials", ignoreCase = true) -> 
+                                    "Sai Email hoặc Mật khẩu! (Hoặc chưa TẮT 'Confirm email' trên Supabase Dashboard)"
+                                msg.contains("Email not confirmed", ignoreCase = true) -> 
+                                    "Email chưa được xác thực! Hãy kiểm tra hòm thư hoặc TẮT 'Confirm email' trên Supabase."
+                                msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("ConnectException", ignoreCase = true) -> 
+                                    "Lỗi kết nối mạng. Vui lòng kiểm tra Internet!"
+                                else -> "Lỗi đăng nhập: $msg"
+                            }
+                            Toast.makeText(context, userFriendlyMsg, Toast.LENGTH_LONG).show()
                         } finally {
                             isLoading = false
                         }

@@ -222,7 +222,7 @@ fun RegisterScreen(
                     isLoading = true
                     coroutineScope.launch {
                         try {
-                            val userEmail = inputEmail.trim()
+                            val userEmail = inputEmail.trim().lowercase()
                             val userPassword = inputPassword
                             
                             Log.d("AUTH_CHECK", "Email sap dang ky: $userEmail")

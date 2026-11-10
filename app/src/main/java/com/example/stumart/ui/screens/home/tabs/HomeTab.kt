@@ -3,23 +3,19 @@ package com.example.stumart.ui.screens.home.tabs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
-import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.ui.theme.StuMartGreen
 import com.example.stumart.ui.theme.StuMartLightBackground
 import com.example.stumart.ui.theme.StuMartTextDark
@@ -28,16 +24,6 @@ import com.example.stumart.ui.theme.StuMartYellow
 
 @Composable
 fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
-    val posts by PostRepository.posts.collectAsState()
-    
-    // Tải bài đăng từ Supabase khi mở tab
-    LaunchedEffect(Unit) {
-        PostRepository.fetchPosts()
-    }
-
-    // Màn hình chính ưu tiên hiển thị bài "Bán thường", "Giá rẻ", "Cho tặng"
-    val homePosts = posts.filter { it.type in listOf("Bán thường", "Giá rẻ", "Cho tặng") }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -55,6 +41,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
                 .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 24.dp)
         ) {
             Column {
+                // Top Row: Location & Icons
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -79,6 +66,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
                     }
                     
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        // Chat Icon with badge
                         Box {
                             Box(
                                 modifier = Modifier
@@ -100,6 +88,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
                                 Text("3", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
                         }
+                        // Notification Icon
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
@@ -114,6 +103,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Search Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -151,7 +141,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
                 .fillMaxWidth()
                 .height(130.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(StuMartGreen)
+                .background(StuMartGreen) // Có thể thêm sọc xéo (stripe) ở đây sau
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxHeight()) {
@@ -212,6 +202,7 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
                 Text("Deal hời hôm nay", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = StuMartTextDark)
             }
             
+            // Countdown timer
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                 TimeBox("01")
                 Text(":", fontWeight = FontWeight.Bold)
@@ -227,18 +218,12 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(homePosts) { post ->
-                val formattedPrice = if (post.price >= 1000000) "${post.price / 1000000} triệu đ" else "${post.price.toInt()}đ"
-                ProductCard(
-                    discount = post.type,
-                    title = post.title,
-                    price = formattedPrice,
-                    imageUrl = post.imageUrl
-                )
-            }
+            item { ProductCard("-56%", "Giáo trình Giải tích A1...", "35.000đ") }
+            item { ProductCard("-29%", "Laptop Dell XPS 13 - i5", "8.5 triệu đ") }
+            item { ProductCard("-50%", "Balo laptop Samsonite", "450.000đ") }
         }
         
-        Spacer(modifier = Modifier.height(100.dp))
+        Spacer(modifier = Modifier.height(100.dp)) // padding cho Bottom Nav
     }
 }
 
@@ -272,7 +257,7 @@ fun TimeBox(time: String) {
 }
 
 @Composable
-fun ProductCard(discount: String, title: String, price: String, imageUrl: String? = null) {
+fun ProductCard(discount: String, title: String, price: String) {
     Card(
         modifier = Modifier
             .width(140.dp)
@@ -287,14 +272,7 @@ fun ProductCard(discount: String, title: String, price: String, imageUrl: String
                     .height(100.dp)
                     .background(Color.LightGray)
             ) {
-                if (!imageUrl.isNullOrBlank()) {
-                    AsyncImage(
-                        model = imageUrl,
-                        contentDescription = title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                }
+                // Discount tag
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(bottomEnd = 8.dp))
