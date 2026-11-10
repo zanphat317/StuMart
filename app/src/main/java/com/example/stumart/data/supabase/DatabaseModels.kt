@@ -21,5 +21,9 @@ data class Post(
     val price: Double,
     val condition: String,
     val description: String,
+    val category: String? = "Khác",
+    @SerialName("seller_name") val sellerName: String? = null,
+    val location: String? = null,
+    @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("user_id") val userId: String? = null // Liên kết đến người đăng
 )
