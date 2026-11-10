@@ -1,5 +1,9 @@
 package com.example.stumart.ui.screens.home
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,22 +22,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.drawscope.Stroke
-import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import android.widget.Toast
-import androidx.compose.ui.platform.LocalContext
-import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
 import com.example.stumart.data.supabase.SupabaseClient
-import io.github.jan.supabase.postgrest.postgrest
 import com.example.stumart.ui.theme.*
+import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +64,7 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .fillMaxHeight(0.9f) // Chiếm 90% chiều cao màn hình
+            .fillMaxHeight(0.9f)
             .background(StuMartLightBackground)
             .padding(16.dp)
             .verticalScroll(rememberScrollState())
@@ -103,7 +104,7 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
         Text("Ảnh sản phẩm", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = StuMartTextDark)
         Spacer(modifier = Modifier.height(8.dp))
         LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            // Nút thêm ảnh (Viền nét đứt)
+            // Nút thêm ảnh
             item {
                 Box(
                     modifier = Modifier
@@ -239,19 +240,27 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                 isLoading = true
                 coroutineScope.launch {
                     try {
+                        val currentUserId = SupabaseClient.client.auth.currentUserOrNull()?.id
+                        val imageUrlString = imageUris.firstOrNull()?.toString()
+
                         val newPost = Post(
                             title = productName,
                             type = selectedType,
                             price = priceValue,
                             condition = condition,
-                            description = description
+                            description = description,
+                            userId = currentUserId,
+                            imageUrl = imageUrlString,
+                            sellerName = "Tôi (Sinh viên)",
+                            location = "ĐH Bách Khoa HN"
                         )
-                        SupabaseClient.client.postgrest["posts"].insert(newPost)
+                        
+                        PostRepository.createPost(newPost)
                         
                         Toast.makeText(context, "Đăng tin thành công!", Toast.LENGTH_SHORT).show()
                         onDismiss()
                     } catch (e: Exception) {
-                        Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Lỗi đăng tin: ${e.message}", Toast.LENGTH_LONG).show()
                     } finally {
                         isLoading = false
                     }
@@ -271,7 +280,7 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
             }
         }
         
-        Spacer(modifier = Modifier.height(32.dp)) // Padding dưỡi cùng
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
 
@@ -309,7 +318,6 @@ fun SelectedImageItem(uri: Uri, onRemove: () -> Unit) {
             modifier = Modifier.fillMaxSize(),
             contentScale = ContentScale.Crop
         )
-        // Mock remove button
         Box(
             modifier = Modifier
                 .align(Alignment.TopEnd)

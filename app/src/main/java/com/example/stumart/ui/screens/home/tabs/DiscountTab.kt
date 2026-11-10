@@ -1,6 +1,7 @@
 package com.example.stumart.ui.screens.home.tabs
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -8,64 +9,32 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.stumart.data.repository.PostRepository
+import com.example.stumart.data.supabase.Post
 import com.example.stumart.ui.theme.*
-
-data class DiscountProduct(
-    val title: String,
-    val discount: String,
-    val newPrice: String,
-    val oldPrice: String,
-    val conditionAndLocation: String,
-    val sellerName: String
-)
-
-val mockDiscountProducts = listOf(
-    DiscountProduct(
-        title = "Giáo trình Giải tích A1 – Bách Khoa HN",
-        discount = "-56%",
-        newPrice = "35.000đ",
-        oldPrice = "80.000đ",
-        conditionAndLocation = "Cũ • Đống Đa, HN",
-        sellerName = "Minh Tuấn"
-    ),
-    DiscountProduct(
-        title = "Laptop Dell XPS 13 – Core i5, RAM 8GB",
-        discount = "-29%",
-        newPrice = "8.5 triệu đ",
-        oldPrice = "12 triệu đ",
-        conditionAndLocation = "Như mới • Cầu Giấy, HN",
-        sellerName = "Thu Hà"
-    ),
-    DiscountProduct(
-        title = "Balo laptop Samsonite 15.6 inch",
-        discount = "-50%",
-        newPrice = "450.000đ",
-        oldPrice = "900.000đ",
-        conditionAndLocation = "Cũ • Hoàng Mai, HN",
-        sellerName = "Lan Anh"
-    ),
-    DiscountProduct(
-        title = "Máy tính Casio FX-580VN X – còn bảo hành",
-        discount = "-57%",
-        newPrice = "400.000đ",
-        oldPrice = "650.000đ",
-        conditionAndLocation = "Mới • Hai Bà Trưng, HN",
-        sellerName = "Tuấn Tú"
-    )
-)
 
 @Composable
 fun DiscountTab() {
+    val posts by PostRepository.posts.collectAsState()
+    var selectedCategory by remember { mutableStateOf("Tất cả") }
+
+    // Lọc bài đăng theo type == "Giá rẻ"
+    val discountPosts = posts.filter { 
+        it.type == "Giá rẻ" || (selectedCategory == "Tất cả" && it.type == "Giá rẻ") 
+    }
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -106,7 +75,7 @@ fun DiscountTab() {
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF2A1600)) // Nâu đen
+                            .background(Color(0xFF2A1600))
                             .padding(16.dp)
                     ) {
                         Row(
@@ -131,7 +100,6 @@ fun DiscountTab() {
                                     )
                                 }
                             }
-                            // Timer
                             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = "01",
@@ -169,28 +137,29 @@ fun DiscountTab() {
                 contentPadding = PaddingValues(horizontal = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { CategoryFilterChip(text = "Tất cả", isSelected = true) }
-                item { CategoryFilterChip(text = "Sách", isSelected = false) }
-                item { CategoryFilterChip(text = "Điện tử", isSelected = false) }
-                item { CategoryFilterChip(text = "Thời trang", isSelected = false) }
-                item { CategoryFilterChip(text = "Đồ dùng", isSelected = false) }
+                item { CategoryFilterChip(text = "Tất cả", isSelected = selectedCategory == "Tất cả", onClick = { selectedCategory = "Tất cả" }) }
+                item { CategoryFilterChip(text = "Sách", isSelected = selectedCategory == "Sách", onClick = { selectedCategory = "Sách" }) }
+                item { CategoryFilterChip(text = "Điện tử", isSelected = selectedCategory == "Điện tử", onClick = { selectedCategory = "Điện tử" }) }
+                item { CategoryFilterChip(text = "Thời trang", isSelected = selectedCategory == "Thời trang", onClick = { selectedCategory = "Thời trang" }) }
+                item { CategoryFilterChip(text = "Đồ dùng", isSelected = selectedCategory == "Đồ dùng", onClick = { selectedCategory = "Đồ dùng" }) }
             }
         }
 
         // --- DANH SÁCH SẢN PHẨM (Items) ---
-        items(mockDiscountProducts) { product ->
-            DiscountProductCard(product)
+        items(discountPosts) { post ->
+            DiscountProductCard(post)
         }
     }
 }
 
 @Composable
-fun CategoryFilterChip(text: String, isSelected: Boolean) {
+fun CategoryFilterChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(20.dp))
             .background(if (isSelected) StuMartOrange else Color.White)
             .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clickable { onClick() }
     ) {
         Text(
             text = text,
@@ -202,7 +171,9 @@ fun CategoryFilterChip(text: String, isSelected: Boolean) {
 }
 
 @Composable
-fun DiscountProductCard(product: DiscountProduct) {
+fun DiscountProductCard(post: Post) {
+    val formattedPrice = if (post.price >= 1000000) "${post.price / 1000000} triệu đ" else "${post.price.toInt()}đ"
+    
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -212,14 +183,21 @@ fun DiscountProductCard(product: DiscountProduct) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Row(modifier = Modifier.fillMaxSize()) {
-            // Ảnh sản phẩm + Tag giảm giá
             Box(
                 modifier = Modifier
                     .width(130.dp)
                     .fillMaxHeight()
                     .background(Color.LightGray)
             ) {
-                // Label % giảm giá
+                if (!post.imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = post.imageUrl,
+                        contentDescription = post.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(bottomEnd = 16.dp))
@@ -227,7 +205,7 @@ fun DiscountProductCard(product: DiscountProduct) {
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = product.discount,
+                        text = post.type,
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.sp
@@ -235,14 +213,13 @@ fun DiscountProductCard(product: DiscountProduct) {
                 }
             }
 
-            // Thông tin chi tiết
             Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(12.dp)
             ) {
                 Text(
-                    text = product.title,
+                    text = post.title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     color = StuMartTextDark,
@@ -258,14 +235,14 @@ fun DiscountProductCard(product: DiscountProduct) {
                             .padding(horizontal = 4.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = product.conditionAndLocation.substringBefore(" •"),
+                            text = post.condition,
                             fontSize = 10.sp,
                             color = StuMartTextGray,
                             fontWeight = FontWeight.Medium
                         )
                     }
                     Text(
-                        text = " • " + product.conditionAndLocation.substringAfter("• "),
+                        text = " • ${post.location ?: "Hà Nội"}",
                         fontSize = 11.sp,
                         color = StuMartTextGray
                     )
@@ -273,23 +250,15 @@ fun DiscountProductCard(product: DiscountProduct) {
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        text = product.newPrice,
+                        text = formattedPrice,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = StuMartOrange
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = product.oldPrice,
-                        fontSize = 12.sp,
-                        color = Color.Gray,
-                        textDecoration = TextDecoration.LineThrough
                     )
                 }
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                // User & Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -303,7 +272,7 @@ fun DiscountProductCard(product: DiscountProduct) {
                                 .background(Color.Gray)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = product.sellerName, fontSize = 12.sp, color = StuMartTextGray)
+                        Text(text = post.sellerName ?: "Sinh viên", fontSize = 12.sp, color = StuMartTextGray)
                     }
                     
                     Row(verticalAlignment = Alignment.CenterVertically) {

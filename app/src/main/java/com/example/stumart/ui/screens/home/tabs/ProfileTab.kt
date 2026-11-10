@@ -1,32 +1,28 @@
 package com.example.stumart.ui.screens.home.tabs
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import com.example.stumart.data.repository.PostRepository
+import com.example.stumart.data.supabase.Post
 import com.example.stumart.ui.theme.*
 
 @Composable
@@ -37,6 +33,7 @@ fun ProfileTab(
     onLogout: () -> Unit = {}
 ) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
+    val posts by PostRepository.posts.collectAsState()
 
     if (showEditProfileDialog) {
         EditProfileDialog(
@@ -54,12 +51,11 @@ fun ProfileTab(
             .fillMaxSize()
             .background(StuMartLightBackground)
     ) {
-        // --- NỘI DUNG CHÍNH (Được kéo lên đè lên Header) ---
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(bottom = 100.dp)
         ) {
-            // Header được đẩy vào trong LazyColumn để trôi theo cuộn
+            // Header
             item {
                 Box(
                     modifier = Modifier
@@ -68,7 +64,7 @@ fun ProfileTab(
                             color = StuMartGreen,
                             shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
                         )
-                        .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 72.dp) // Tăng bottom padding cho khối Card trồi lên đè
+                        .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 72.dp)
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -95,20 +91,19 @@ fun ProfileTab(
                 }
             }
 
-            // 1. Thẻ thông tin cá nhân (Card đè lên Header xanh)
+            // 1. Thẻ thông tin cá nhân
             item {
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
-                        .offset(y = (-40).dp), // Kéo Card lên đè 40dp
+                        .offset(y = (-40).dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            // Avatar
                             Box {
                                 Box(
                                     modifier = Modifier
@@ -117,10 +112,8 @@ fun ProfileTab(
                                         .background(Color.LightGray)
                                         .border(2.dp, StuMartYellow, CircleShape)
                                 ) {
-                                    // Thay bằng painterResource của ảnh thực tế nếu có
                                     Box(modifier = Modifier.fillMaxSize().background(Color.Gray.copy(alpha = 0.3f)))
                                 }
-                                // Tích xanh / Vàng chứng nhận
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
@@ -151,12 +144,11 @@ fun ProfileTab(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Thống kê (Đã bán, Đã mua, Uy tín)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            StatBox(icon = "📦", number = "28", label = "Đã bán")
+                            StatBox(icon = "📦", number = "${posts.size}", label = "Đã bán")
                             StatBox(icon = "🛒", number = "14", label = "Đã mua")
                             StatBox(icon = "🏆", number = "98%", label = "Uy tín")
                         }
@@ -198,7 +190,7 @@ fun ProfileTab(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("📋", fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Tin đăng của tôi", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
+                            Text("Tin đăng của tôi (${posts.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
                         }
                         
                         Box(
@@ -215,14 +207,7 @@ fun ProfileTab(
             }
 
             // 4. Lưới sản phẩm (Tin đăng của tôi)
-            val myProducts = listOf(
-                MyProduct("Giáo trình Giải tích A1 - ...", "35.000đ", "34", "12"),
-                MyProduct("Laptop Dell XPS 13 - Core...", "8.5 triệu đ", "34", "45"),
-                MyProduct("Tai nghe chụp tai Sony...", "200.000đ", "12", "5"),
-                MyProduct("Balo laptop nam đen...", "150.000đ", "45", "10")
-            )
-            
-            val chunkedProducts = myProducts.chunked(2)
+            val chunkedProducts = posts.chunked(2)
             
             items(chunkedProducts.size) { rowIndex ->
                 val rowItems = chunkedProducts[rowIndex]
@@ -230,12 +215,11 @@ fun ProfileTab(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).offset(y = (-40).dp),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    for (product in rowItems) {
+                    for (post in rowItems) {
                         Box(modifier = Modifier.weight(1f)) {
-                            MyProductCard(product)
+                            MyProductCard(post)
                         }
                     }
-                    // Nếu hàng cuối bị lẻ 1 item thì thêm ô trống để lấp chỗ
                     if (rowItems.size == 1) {
                         Spacer(modifier = Modifier.weight(1f))
                     }
@@ -252,7 +236,7 @@ fun ProfileTab(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)), // Màu đỏ đẹp
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                         shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Đăng xuất", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
@@ -338,7 +322,7 @@ fun EditProfileDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor(),
-                        readOnly = false, // Cho phép gõ để lọc hoặc nhập trường khác
+                        readOnly = false,
                         placeholder = { Text("Chọn hoặc nhập trường") },
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
@@ -348,7 +332,7 @@ fun EditProfileDialog(
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        modifier = Modifier.heightIn(max = 250.dp) // Giới hạn chiều cao danh sách
+                        modifier = Modifier.heightIn(max = 250.dp)
                     ) {
                         val filteredList = if (university.isBlank()) universities else universities.filter { it.contains(university, ignoreCase = true) }
                         filteredList.forEach { selectionOption ->
@@ -380,10 +364,10 @@ fun EditProfileDialog(
     )
 }
 
-data class MyProduct(val title: String, val price: String, val views: String, val likes: String)
-
 @Composable
-fun MyProductCard(product: MyProduct) {
+fun MyProductCard(post: Post) {
+    val formattedPrice = if (post.price >= 1000000) "${post.price / 1000000} triệu đ" else "${post.price.toInt()}đ"
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -398,10 +382,19 @@ fun MyProductCard(product: MyProduct) {
                     .fillMaxWidth()
                     .height(100.dp)
                     .background(Color.LightGray)
-            )
+            ) {
+                if (!post.imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = post.imageUrl,
+                        contentDescription = post.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+            }
             Column(modifier = Modifier.padding(12.dp)) {
                 Text(
-                    text = product.title,
+                    text = post.title,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     color = StuMartTextDark,
@@ -409,7 +402,7 @@ fun MyProductCard(product: MyProduct) {
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = product.price,
+                    text = formattedPrice,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = StuMartGreen
@@ -418,9 +411,7 @@ fun MyProductCard(product: MyProduct) {
                 Spacer(modifier = Modifier.weight(1f))
                 
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("👁️ ${product.views}", fontSize = 10.sp, color = StuMartTextGray)
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text("❤️ ${product.likes}", fontSize = 10.sp, color = StuMartTextGray)
+                    Text("🏷️ ${post.type}", fontSize = 10.sp, color = StuMartTextGray)
                 }
             }
         }

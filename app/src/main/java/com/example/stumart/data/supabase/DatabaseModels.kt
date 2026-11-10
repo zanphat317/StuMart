@@ -17,9 +17,12 @@ data class UserProfile(
 data class Post(
     val id: String? = null, // UUID của bài đăng do DB tự sinh
     val title: String,
-    val type: String, // VD: "Bán thường", "Giá rẻ"...
+    val type: String, // VD: "Bán thường", "Giá rẻ", "Cho tặng", "Đấu giá", "Túi mù"
     val price: Double,
     val condition: String,
     val description: String,
-    @SerialName("user_id") val userId: String? = null // Liên kết đến người đăng
+    @SerialName("user_id") val userId: String? = null, // Liên kết đến người đăng
+    @SerialName("image_url") val imageUrl: String? = null,
+    @SerialName("seller_name") val sellerName: String? = "Sinh viên StuMart",
+    @SerialName("location") val location: String? = "ĐH Bách Khoa HN"
 )
