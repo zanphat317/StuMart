@@ -39,6 +39,7 @@ class MainActivity : ComponentActivity() {
                     var currentScreen by rememberSaveable { mutableStateOf(Screen.Splash) }
                     var userName by rememberSaveable { mutableStateOf("Sinh viên StuMart") }
                     var userUniversity by rememberSaveable { mutableStateOf("ĐH Bách Khoa TP.HCM (ĐHQG-HCM)") }
+                    var shouldShowSurvey by rememberSaveable { mutableStateOf(false) }
 
                     when (currentScreen) {
                         Screen.Splash -> SplashScreen(onSplashFinished = { currentScreen = Screen.Onboarding })
@@ -47,6 +48,7 @@ class MainActivity : ComponentActivity() {
                             onLoginSuccess = { name, uni ->
                                 userName = name
                                 userUniversity = uni
+                                shouldShowSurvey = true // Chỉ bật khảo sát khi VỪA ĐĂNG NHẬP THÀNH CÔNG
                                 currentScreen = Screen.Home
                             },
                             onNavigateToRegister = { currentScreen = Screen.Register },
@@ -56,6 +58,7 @@ class MainActivity : ComponentActivity() {
                             onRegisterSuccess = { name, uni ->
                                 userName = name
                                 userUniversity = uni
+                                shouldShowSurvey = true // Chỉ bật khảo sát khi VỪA ĐĂNG KÝ THÀNH CÔNG
                                 currentScreen = Screen.Home
                             },
                             onNavigateToLogin = { currentScreen = Screen.Login }
@@ -68,6 +71,8 @@ class MainActivity : ComponentActivity() {
                             com.example.stumart.ui.screens.home.HomeScreen(
                                 userName = userName,
                                 userUniversity = userUniversity,
+                                shouldShowSurvey = shouldShowSurvey,
+                                onSurveyDismissed = { shouldShowSurvey = false },
                                 onUniversityChange = { userUniversity = it },
                                 onLogout = { currentScreen = Screen.Login }
                             )

@@ -35,6 +35,8 @@ enum class HomeRoute {
 fun HomeScreen(
     userName: String = "Khoa Mai Dang",
     userUniversity: String = "ĐH Bách Khoa Hà Nội",
+    shouldShowSurvey: Boolean = false,
+    onSurveyDismissed: () -> Unit = {},
     onUniversityChange: (String) -> Unit = {},
     onLogout: () -> Unit
 ) {
@@ -76,6 +78,16 @@ fun HomeScreen(
         ) {
             PostBottomSheetContent(onDismiss = { showPostBottomSheet = false })
         }
+    }
+
+    if (shouldShowSurvey) {
+        InterestsSurveyDialog(
+            onDismiss = onSurveyDismissed,
+            onSaveInterests = { selectedCategories ->
+                // Đóng dialog khảo sát danh mục yêu thích sau khi bấm lưu/bắt đầu
+                onSurveyDismissed()
+            }
+        )
     }
 }
 
