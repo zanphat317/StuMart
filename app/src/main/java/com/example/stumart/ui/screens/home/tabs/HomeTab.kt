@@ -311,7 +311,10 @@ fun GridPostCard(post: Post) {
                     .background(Color(0xFFFFF9E6)),
                 contentAlignment = Alignment.Center
             ) {
-                if (!post.imageUrl.isNullOrBlank()) {
+                val isValidImage = !post.imageUrl.isNullOrBlank() && 
+                    (post.imageUrl.startsWith("http://") || post.imageUrl.startsWith("https://"))
+
+                if (isValidImage) {
                     AsyncImage(
                         model = coil.request.ImageRequest.Builder(context)
                             .data(post.imageUrl)
@@ -323,6 +326,18 @@ fun GridPostCard(post: Post) {
                     )
                 } else {
                     Text("🦆", fontSize = 48.sp)
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE53935)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("!", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
 
                 // Nhãn phân loại loại tin đăng

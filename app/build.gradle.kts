@@ -51,6 +51,7 @@ dependencies {
     val ktor_version = "2.3.11"
     implementation("io.github.jan-tennert.supabase:postgrest-kt:$supabase_version")
     implementation("io.github.jan-tennert.supabase:gotrue-kt:$supabase_version")
+    implementation("io.github.jan-tennert.supabase:storage-kt:$supabase_version")
     implementation("io.ktor:ktor-client-android:$ktor_version")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
 

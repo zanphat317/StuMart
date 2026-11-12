@@ -30,12 +30,14 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import android.util.Log
 import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
 import com.example.stumart.data.supabase.SupabaseClient
 import com.example.stumart.data.supabase.UserProfile
 import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.storage.storage
 import com.example.stumart.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -261,9 +263,23 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                             }
                         }
 
-                        val uploadedImageUrl = if (imageUris.isNotEmpty()) {
-                            com.example.stumart.util.ImageUtils.processImageUri(context, imageUris.first())
-                        } else null
+                        var uploadedImageUrl: String? = null
+
+                        if (imageUris.isNotEmpty()) {
+                            try {
+                                val selectedUri = imageUris.first()
+                                val bytes = context.contentResolver.openInputStream(selectedUri)?.use { it.readBytes() }
+                                if (bytes != null) {
+                                    val fileName = "post_${System.currentTimeMillis()}_${java.util.UUID.randomUUID().toString().take(8)}.jpg"
+                                    val bucket = SupabaseClient.client.storage.from("post-image")
+                                    bucket.upload(path = fileName, data = bytes, upsert = true)
+                                    uploadedImageUrl = bucket.publicUrl(path = fileName)
+                                    Log.d("UPLOAD_IMAGE", "Upload thanh cong URL: $uploadedImageUrl")
+                                }
+                            } catch (e: Exception) {
+                                Log.e("UPLOAD_IMAGE", "Loi upload anh: ${e.message}", e)
+                            }
+                        }
 
                         val newPost = Post(
                             title = productName,

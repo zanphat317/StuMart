@@ -190,7 +190,10 @@ fun DiscountProductCard(post: Post) {
                     .background(Color(0xFFFFF9E6)),
                 contentAlignment = Alignment.Center
             ) {
-                if (!post.imageUrl.isNullOrBlank()) {
+                val isValidImage = !post.imageUrl.isNullOrBlank() && 
+                    (post.imageUrl.startsWith("http://") || post.imageUrl.startsWith("https://"))
+
+                if (isValidImage) {
                     AsyncImage(
                         model = post.imageUrl,
                         contentDescription = post.title,
@@ -198,7 +201,7 @@ fun DiscountProductCard(post: Post) {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Không có hình ảnh -> Dùng con vịt làm tượng trưng
+                    // Không có hình ảnh hoặc link local cũ -> Dùng con vịt làm tượng trưng
                     Text("🦆", fontSize = 42.sp)
 
                     // Dấu cảnh báo "!"
