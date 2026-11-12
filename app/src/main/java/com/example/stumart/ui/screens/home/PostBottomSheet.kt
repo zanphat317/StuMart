@@ -261,7 +261,9 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                             }
                         }
 
-                        val uploadedImageUrl = if (imageUris.isNotEmpty()) imageUris.first().toString() else null
+                        val uploadedImageUrl = if (imageUris.isNotEmpty()) {
+                            com.example.stumart.util.ImageUtils.processImageUri(context, imageUris.first())
+                        } else null
 
                         val newPost = Post(
                             title = productName,

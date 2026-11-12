@@ -3,8 +3,6 @@ package com.example.stumart.ui.screens.home.tabs
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -169,63 +167,6 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
             }
         }
 
-        // --- DANH SÁCH SẢN PHẨM THỰC TẾ TỪ SUPABASE ---
-        Spacer(modifier = Modifier.height(24.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("🛍️", fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Mới đăng gần đây",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp,
-                    color = StuMartTextDark
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        if (posts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🦆", fontSize = 48.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Chưa có sản phẩm nào được đăng.",
-                        color = StuMartTextGray,
-                        fontSize = 14.sp
-                    )
-                    Text(
-                        text = "Hãy bấm nút 'Đăng bán' để tạo sản phẩm đầu tiên!",
-                        color = StuMartGreen,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 13.sp
-                    )
-                }
-            }
-        } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                items(posts) { post ->
-                    RealPostCard(post)
-                }
-            }
-        }
-
         // --- CATEGORIES SECTION ---
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -253,8 +194,8 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
             }
         }
 
-        // --- DEAL HỜI HÔM NAY ---
-        Spacer(modifier = Modifier.height(24.dp))
+        // --- DEAL HỜI HÔM NAY (LƯỚI 2 CỘT DÀI XUỐNG KIỂU SHOPEE) ---
+        Spacer(modifier = Modifier.height(28.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -263,9 +204,14 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("⚡", fontSize = 20.sp)
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Deal hời hôm nay", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = StuMartTextDark)
+                Text("⚡", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Deal hời hôm nay",
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 20.sp,
+                    color = StuMartTextDark
+                )
             }
             
             // Countdown timer
@@ -280,23 +226,58 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
         
         Spacer(modifier = Modifier.height(16.dp))
 
-        val dealPosts = posts.filter { it.type == "Giá rẻ" || it.type == "Đấu giá" }
-        if (dealPosts.isEmpty()) {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+        // Xen kẽ các sản phẩm "Bán thường" và "Giá rẻ"
+        val normalList = posts.filter { it.type == "Bán thường" }
+        val discountList = posts.filter { it.type == "Giá rẻ" }
+        
+        val mixedPosts = remember(posts) {
+            val list = mutableListOf<Post>()
+            val maxSize = maxOf(normalList.size, discountList.size)
+            for (i in 0 until maxSize) {
+                if (i < normalList.size) list.add(normalList[i])
+                if (i < discountList.size) list.add(discountList[i])
+            }
+            // Nếu không có đủ 2 loại thì lấy tất cả sản phẩm
+            if (list.isNotEmpty()) list else posts
+        }
+
+        if (mixedPosts.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center
             ) {
-                items(posts) { post ->
-                    RealPostCard(post)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("🦆", fontSize = 48.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Chưa có sản phẩm nào.",
+                        color = StuMartTextGray,
+                        fontSize = 14.sp
+                    )
                 }
             }
         } else {
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
+            val chunkedPosts = mixedPosts.chunked(2)
+            Column(
+                modifier = Modifier.padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(dealPosts) { post ->
-                    RealPostCard(post)
+                chunkedPosts.forEach { rowItems ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        for (post in rowItems) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                GridPostCard(post)
+                            }
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -306,7 +287,8 @@ fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
 }
 
 @Composable
-fun RealPostCard(post: Post) {
+fun GridPostCard(post: Post) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     val formattedPrice = if (post.price >= 1000000) {
         "${(post.price / 1000000).toString().removeSuffix(".0")} triệu đ"
     } else {
@@ -315,8 +297,8 @@ fun RealPostCard(post: Post) {
 
     Card(
         modifier = Modifier
-            .width(150.dp)
-            .height(220.dp),
+            .fillMaxWidth()
+            .height(230.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp)
@@ -325,51 +307,41 @@ fun RealPostCard(post: Post) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(110.dp)
+                    .height(130.dp)
                     .background(Color(0xFFFFF9E6)),
                 contentAlignment = Alignment.Center
             ) {
                 if (!post.imageUrl.isNullOrBlank()) {
                     AsyncImage(
-                        model = post.imageUrl,
+                        model = coil.request.ImageRequest.Builder(context)
+                            .data(post.imageUrl)
+                            .crossfade(true)
+                            .build(),
                         contentDescription = post.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    // Không có hình ảnh -> Dùng con vịt làm tượng trưng
-                    Text("🦆", fontSize = 42.sp)
-
-                    // Dấu cảnh báo "!" màu đỏ ở góc trên bên phải
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE53935)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("!", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                    }
+                    Text("🦆", fontSize = 48.sp)
                 }
 
-                // Nhãn phân loại
+                // Nhãn phân loại loại tin đăng
+                val tagColor = if (post.type == "Giá rẻ") StuMartOrange else StuMartGreen
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                        .background(StuMartGreen)
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                        .background(tagColor)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(post.type, color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text(post.type, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                 }
             }
 
             Column(modifier = Modifier.padding(10.dp)) {
                 Text(
                     text = post.title,
-                    fontSize = 12.sp,
+                    fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -378,18 +350,31 @@ fun RealPostCard(post: Post) {
 
                 Spacer(modifier = Modifier.height(4.dp))
 
-                Text(
-                    text = post.sellerName ?: "Sinh viên",
-                    fontSize = 10.sp,
-                    color = StuMartTextGray,
-                    maxLines = 1
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color.LightGray.copy(alpha = 0.4f))
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    ) {
+                        Text(post.condition, fontSize = 9.sp, color = StuMartTextGray)
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = post.sellerName ?: "Sinh viên",
+                        fontSize = 10.sp,
+                        color = StuMartTextGray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
 
                 Spacer(modifier = Modifier.weight(1f))
 
+                // GIÁ TIỀN MỌI MÓN HÀNG ĐỀU MÀU CAM (StuMartOrange)
                 Text(
                     text = formattedPrice,
-                    fontSize = 13.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = StuMartOrange
                 )

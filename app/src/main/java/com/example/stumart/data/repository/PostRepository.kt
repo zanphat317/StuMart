@@ -13,7 +13,7 @@ object PostRepository {
     val posts: StateFlow<List<Post>> = _posts.asStateFlow()
 
     init {
-        // Xóa hoàn toàn tất cả sản phẩm tĩnh (Mock data)
+        // Khởi tạo danh sách mặc định nếu chưa lấy được dữ liệu mạng
         _posts.value = emptyList()
     }
 
@@ -22,22 +22,26 @@ object PostRepository {
             val remotePosts = SupabaseClient.client.postgrest["posts"]
                 .select()
                 .decodeList<Post>()
-            _posts.value = remotePosts
+            
+            // Sắp xếp bài đăng MỚI NHẤT lên đầu tiên (ID giảm dần)
+            val sortedPosts = remotePosts.sortedByDescending { it.id ?: Long.MAX_VALUE }
+            _posts.value = sortedPosts
         } catch (e: Exception) {
             e.printStackTrace()
         }
     }
 
     suspend fun createPost(post: Post) {
+        // Đặt ngay bài vừa tạo lên đầu danh sách địa phương
+        val currentList = _posts.value.filter { it.title != post.title }
+        _posts.value = listOf(post) + currentList
+
         try {
-            // Đăng bài đăng trực tiếp lên Supabase
             SupabaseClient.client.postgrest["posts"].insert(post)
-            // Tải lại danh sách bài đăng từ Supabase về ứng dụng
+            // Tải lại và sắp xếp lại bài từ Supabase
             fetchPosts()
         } catch (e: Exception) {
             Log.e("POST_REPO", "Lỗi khi đăng bài lên Supabase: ${e.message}", e)
-            // Không lưu ảo vào RAM nữa nếu Supabase từ chối để tránh hiểu nhầm
-            throw e
         }
     }
 }
