@@ -381,7 +381,8 @@ fun MyProductCard(post: Post) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(100.dp)
-                    .background(Color.LightGray)
+                    .background(Color(0xFFFFF9E6)),
+                contentAlignment = Alignment.Center
             ) {
                 if (!post.imageUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -390,6 +391,20 @@ fun MyProductCard(post: Post) {
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    Text("🦆", fontSize = 36.sp)
+
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(4.dp)
+                            .size(18.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE53935)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("!", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
             }
             Column(modifier = Modifier.padding(12.dp)) {

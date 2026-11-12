@@ -15,7 +15,7 @@ data class UserProfile(
 
 @Serializable
 data class Post(
-    val id: String? = null, // UUID của bài đăng do DB tự sinh
+    val id: Long? = null, // ID kiểu int8 (bigint) do Supabase tự sinh
     val title: String,
     val type: String, // VD: "Bán thường", "Giá rẻ"...
     val price: Double,

@@ -187,7 +187,8 @@ fun DiscountProductCard(post: Post) {
                 modifier = Modifier
                     .width(130.dp)
                     .fillMaxHeight()
-                    .background(Color.LightGray)
+                    .background(Color(0xFFFFF9E6)),
+                contentAlignment = Alignment.Center
             ) {
                 if (!post.imageUrl.isNullOrBlank()) {
                     AsyncImage(
@@ -196,10 +197,27 @@ fun DiscountProductCard(post: Post) {
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
+                } else {
+                    // Không có hình ảnh -> Dùng con vịt làm tượng trưng
+                    Text("🦆", fontSize = 42.sp)
+
+                    // Dấu cảnh báo "!"
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(20.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFE53935)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text("!", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                    }
                 }
                 
                 Box(
                     modifier = Modifier
+                        .align(Alignment.TopStart)
                         .clip(RoundedCornerShape(bottomEnd = 16.dp))
                         .background(StuMartOrange)
                         .padding(horizontal = 8.dp, vertical = 4.dp)

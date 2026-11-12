@@ -30,8 +30,11 @@ import androidx.compose.ui.unit.sp
 import android.widget.Toast
 import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
+import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
 import com.example.stumart.data.supabase.SupabaseClient
+import com.example.stumart.data.supabase.UserProfile
+import io.github.jan.supabase.gotrue.auth
 import io.github.jan.supabase.postgrest.postgrest
 import com.example.stumart.ui.theme.*
 
@@ -44,6 +47,7 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
     var description by remember { mutableStateOf("") }
     
     var selectedType by remember { mutableStateOf("Bán thường") }
+    var selectedCategory by remember { mutableStateOf("Khác") }
     var isLoading by remember { mutableStateOf(false) }
     
     // Quản lý danh sách ảnh (Uris)
@@ -239,14 +243,40 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                 isLoading = true
                 coroutineScope.launch {
                     try {
+                        val currentUser = SupabaseClient.client.auth.currentUserOrNull()
+                        var sellerName = "Sinh viên"
+                        var userLoc = "ĐH Bách Khoa TP.HCM"
+
+                        if (currentUser != null) {
+                            try {
+                                val profile = SupabaseClient.client.postgrest["profiles"]
+                                    .select { filter { eq("id", currentUser.id) } }
+                                    .decodeSingleOrNull<UserProfile>()
+                                if (profile != null) {
+                                    if (!profile.fullName.isNullOrBlank()) sellerName = profile.fullName
+                                    if (!profile.university.isNullOrBlank()) userLoc = profile.university
+                                }
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                            }
+                        }
+
+                        val uploadedImageUrl = if (imageUris.isNotEmpty()) imageUris.first().toString() else null
+
                         val newPost = Post(
                             title = productName,
                             type = selectedType,
                             price = priceValue,
                             condition = condition,
-                            description = description
+                            description = description,
+                            category = selectedCategory,
+                            sellerName = sellerName,
+                            location = userLoc,
+                            imageUrl = uploadedImageUrl,
+                            userId = currentUser?.id
                         )
-                        SupabaseClient.client.postgrest["posts"].insert(newPost)
+                        
+                        PostRepository.createPost(newPost)
                         
                         Toast.makeText(context, "Đăng tin thành công!", Toast.LENGTH_SHORT).show()
                         onDismiss()
