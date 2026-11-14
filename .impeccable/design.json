@@ -1,0 +1,90 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-14T12:54:00.000Z",
+  "title": "Design System: StuMart — The Campus Voltage",
+  "extensions": {
+    "colorMeta": {
+      "primary": { "role": "primary", "displayName": "Collegiate Emerald", "canonical": "#0B6E4F", "tonalRamp": ["#04281D", "#074431", "#0B6E4F", "#1A8E68", "#38B68D", "#71D4B3", "#DCF8EC"] },
+      "primary-container": { "role": "primary-container", "displayName": "Fresh Mint Tint", "canonical": "#DCF8EC", "tonalRamp": ["#0B6E4F", "#38B68D", "#71D4B3", "#DCF8EC", "#EDFAF4"] },
+      "accent-hero": { "role": "secondary", "displayName": "Voltage Duck Gold", "canonical": "#FFD21E", "tonalRamp": ["#665400", "#B29300", "#FFD21E", "#FFE066", "#FFF0B2"] },
+      "accent-warm": { "role": "tertiary", "displayName": "Blaze Tangerine", "canonical": "#FF5722", "tonalRamp": ["#661A00", "#B23300", "#FF5722", "#FF8A65", "#FFCCBC"] },
+      "neutral-bg": { "role": "neutral", "displayName": "Warm Chalkboard Canvas", "canonical": "#FAF8F2", "tonalRamp": ["#181C24", "#4B5563", "#9CA3AF", "#E5E7EB", "#FAF8F2"] },
+      "surface": { "role": "surface", "displayName": "Pure Surface White", "canonical": "#FFFFFF", "tonalRamp": ["#181C24", "#6B7280", "#E5E7EB", "#FFFFFF"] },
+      "text-primary": { "role": "neutral", "displayName": "Ink Charcoal", "canonical": "#181C24", "tonalRamp": ["#0B0E14", "#181C24", "#374151", "#6B7280"] },
+      "text-muted": { "role": "neutral-variant", "displayName": "Slate Muted Gray", "canonical": "#6B7280", "tonalRamp": ["#374151", "#4B5563", "#6B7280", "#9CA3AF"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display Hero", "purpose": "Punchy price tags, major hero headers (Weight 900)." },
+      "headline": { "displayName": "Headline", "purpose": "Section headers and category banners (Weight 800)." },
+      "title": { "displayName": "Title", "purpose": "Product titles on listings, button labels (Weight 700)." },
+      "body": { "displayName": "Body", "purpose": "Comfortable description and conversational chat text." },
+      "label": { "displayName": "Label Punchy", "purpose": "Status chips, condition pills, location tags (Weight 800)." }
+    },
+    "shadows": [
+      { "name": "card-rest", "value": "0 2px 6px rgba(0,0,0,0.04)", "purpose": "Subtle elevation for listing cards on the warm canvas." },
+      { "name": "nav-bar", "value": "0 -4px 16px rgba(0,0,0,0.08)", "purpose": "Upward shadow for fixed bottom bar." },
+      { "name": "hero-fab", "value": "0 4px 14px rgba(255, 210, 30, 0.40)", "purpose": "Luminous shadow under floating duck action button." }
+    ],
+    "motion": [
+      { "name": "ease-standard", "value": "cubic-bezier(0.4, 0, 0.2, 1)", "purpose": "Default Material motion curve." }
+    ],
+    "breakpoints": [
+      { "name": "compact", "value": "360px" },
+      { "name": "standard", "value": "412px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Solid primary action button in Collegiate Emerald.",
+      "html": "<button class=\"ds-btn-primary\">Hẹn gặp & Mua ngay</button>",
+      "css": ".ds-btn-primary { background: #0B6E4F; color: #FFFFFF; font-family: Roboto, sans-serif; font-weight: 700; font-size: 16px; padding: 16px 24px; border: none; border-radius: 16px; width: 100%; cursor: pointer; transition: background 0.2s, transform 0.1s; } .ds-btn-primary:hover { background: #074431; } .ds-btn-primary:active { transform: scale(0.98); }"
+    },
+    {
+      "name": "Duck Hero FAB",
+      "kind": "button",
+      "refersTo": "button-hero-fab",
+      "description": "Floating center action button for listing items.",
+      "html": "<div class=\"ds-fab-wrapper\"><button class=\"ds-fab\"><span class=\"ds-fab-duck\">🦆</span></button><span class=\"ds-fab-label\">Đăng bán</span></div>",
+      "css": ".ds-fab-wrapper { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; } .ds-fab { width: 58px; height: 58px; border-radius: 50%; background: #FFD21E; border: none; box-shadow: 0 4px 14px rgba(255, 210, 30, 0.40); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: transform 0.2s; } .ds-fab:hover { transform: scale(1.05); } .ds-fab:active { transform: scale(0.95); } .ds-fab-duck { font-size: 28px; } .ds-fab-label { font-family: Roboto, sans-serif; font-size: 11px; font-weight: 800; color: #0B6E4F; }"
+    },
+    {
+      "name": "Product Grid Tile",
+      "kind": "card",
+      "refersTo": "tile-listing",
+      "description": "Two-column marketplace tile without card-in-card nesting.",
+      "html": "<div class=\"ds-tile\"><div class=\"ds-tile-img\"><span class=\"ds-tile-placeholder\">🦆</span></div><div class=\"ds-tile-body\"><div class=\"ds-tile-price\">150.000 đ</div><div class=\"ds-tile-title\">Giáo trình Giải tích 1</div></div></div>",
+      "css": ".ds-tile { background: #FFFFFF; border-radius: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.05); overflow: hidden; width: 180px; font-family: Roboto, sans-serif; } .ds-tile-img { height: 130px; background: #FFF6D6; display: flex; align-items: center; justify-content: center; } .ds-tile-placeholder { font-size: 36px; } .ds-tile-body { padding: 10px; } .ds-tile-price { font-size: 16px; font-weight: 800; color: #FF5722; } .ds-tile-title { font-size: 13px; font-weight: 700; color: #181C24; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Campus Voltage",
+    "overview": "StuMart is a hyper-local campus marketplace and student community app with youthful, energetic Vietnamese college flair. It pairs trustworthy collegiate emerald structure with electric duck gold hero actions, searing blaze tangerine prices, and a warm chalkboard canvas. It strictly bans card-in-card AI slop in favor of open spatial rhythm, edge-to-edge trust bands, and punchy typography.",
+    "keyCharacteristics": [
+      "Strict Anti-Card-in-Card: Zero nested boxes; spatial rhythm, edge-to-edge color bands, and hairline dividers replace lazy card wrappers.",
+      "Committed Voltage Palette: Collegiate Emerald (#0B6E4F) anchors structure; Voltage Duck Gold (#FFD21E) commands hero actions; Blaze Tangerine (#FF5722) ignites deal prices.",
+      "Expressive Typography Scale: High contrast between Black (900) hero numerals and clean, scannable body text. No weak eyebrows.",
+      "Authentic Vietnamese Campus Culture: Local campus meetup spots, verified student trust indicators, and cheerful duck mascot camaraderie."
+    ],
+    "rules": [
+      { "name": "The Anti-Card-in-Card Rule", "body": "Never nest a card inside another card. Groups of metadata are rendered as inline flow rows or edge-to-edge color bands separated by whitespace, not boxed containers.", "section": "layout" },
+      { "name": "The Committed Palette Rule", "body": "Collegiate Emerald (#0B6E4F) owns 30% of structural authority; Voltage Duck Gold (#FFD21E) owns hero delight; Blaze Tangerine (#FF5722) owns urgent deals and pricing. Avoid washed-out pastel scatter.", "section": "colors" },
+      { "name": "The Heading Strength Rule", "body": "Headings stand on their own strength without tiny kicker/eyebrow labels. Space above headings must be at least 1.8x the space below.", "section": "typography" },
+      { "name": "The Warm Canvas Rule", "body": "Surfaces sit on Warm Chalkboard Canvas (#FAF8F2) rather than glaring hospital white, protecting student eyes during night browsing.", "section": "colors" }
+    ],
+    "dos": [
+      "Do use high-contrast color pairings (Collegiate Emerald + Voltage Duck Gold + Blaze Tangerine) for bold youthful energy.",
+      "Do organize content with whitespace pacing and edge-to-edge tint bands instead of nested card boxes.",
+      "Do emphasize prices with heavy ExtraBold/Black weights and Vietnamese currency conventions (e.g. 150.000 đ).",
+      "Do maintain a minimum of 48dp x 48dp for all touch targets."
+    ],
+    "donts": [
+      "Don't nest cards inside cards (Card-in-Card AI Slop).",
+      "Don't use gradient text or blurry colored glow halos.",
+      "Don't use washed-out low-contrast gray text or clinical hospital white backgrounds.",
+      "Don't place floating kickers or tiny eyebrows above section headings."
+    ]
+  }
+}

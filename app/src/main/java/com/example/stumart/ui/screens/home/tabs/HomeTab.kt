@@ -1,12 +1,18 @@
 package com.example.stumart.ui.screens.home.tabs
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -14,309 +20,646 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
 import com.example.stumart.ui.theme.*
 
+/**
+ * Giao diện HomeTab - "Campus Story & Bento Stream"
+ * Thiết kế phá cách, giàu năng lượng cộng đồng sinh viên:
+ * - Lời chào thân thiện cá nhân hóa theo buổi
+ * - Khối Bento tiện ích (Góc 0đ Cho Tặng & Săn Deal KTX)
+ * - Thanh tìm kiếm & bộ lọc chip trượt ngang trong tầm ngón cái (Thumb-zone)
+ * - Lưới sản phẩm mở, tuyệt đối không lồng card-trong-card
+ */
 @Composable
-fun HomeTab(userUniversity: String = "ĐH Bách Khoa Hà Nội") {
+fun HomeTab(
+    userName: String = "Khoa Mai Dang",
+    userUniversity: String = "ĐH Bách Khoa Hà Nội",
+    onSearchClick: () -> Unit = {},
+    onCategoryClick: (String) -> Unit = {},
+    onPostClick: (Post) -> Unit = {},
+    onChatClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {},
+    onBannerClick: () -> Unit = {}
+) {
     val posts by PostRepository.posts.collectAsState()
+    var selectedCategory by remember { mutableStateOf("Tất cả") }
 
     LaunchedEffect(Unit) {
         PostRepository.fetchPosts()
     }
 
-    Column(
+    // Lọc bài đăng theo danh mục được chọn
+    val filteredPosts = remember(posts, selectedCategory) {
+        if (selectedCategory == "Tất cả") {
+            posts
+        } else if (selectedCategory == "🎁 Đồ 0đ") {
+            posts.filter { it.type == "Cho tặng" || it.price <= 0 }
+        } else if (selectedCategory == "⚡ Deal rẻ") {
+            posts.filter { it.type == "Giá rẻ" }
+        } else {
+            posts.filter {
+                val cat = it.category ?: "Khác"
+                cat.contains(selectedCategory.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), ""), ignoreCase = true) ||
+                        it.title.contains(selectedCategory.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), ""), ignoreCase = true)
+            }
+        }
+    }
+
+    // Chia bài đăng thành 2 cột cho LazyColumn
+    val chunkedPosts = remember(filteredPosts) { filteredPosts.chunked(2) }
+
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(StuMartLightBackground)
-            .verticalScroll(rememberScrollState())
+            .background(StuMartLightBackground),
+        contentPadding = PaddingValues(bottom = 100.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // --- HEADER SECTION (Green Area) ---
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    color = StuMartGreen,
-                    shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)
+        // --- 1. CAMPUS GREETING BAR (Thanh chào đón & Vị trí) ---
+        item(key = "home_greeting") {
+            CampusGreetingSection(
+                userName = userName,
+                userUniversity = userUniversity,
+                onChatClick = onChatClick,
+                onNotificationClick = onNotificationClick
+            )
+        }
+
+        // --- 2. BENTO QUICK HUB (Cụm Bento khám phá sinh viên) ---
+        item(key = "home_bento_hub") {
+            BentoQuickHub(
+                onFreeGiveawayClick = {
+                    selectedCategory = "🎁 Đồ 0đ"
+                    onCategoryClick("Cho tặng")
+                },
+                onDealsClick = {
+                    selectedCategory = "⚡ Deal rẻ"
+                    onCategoryClick("Giá rẻ")
+                }
+            )
+        }
+
+        // --- 3. SEARCH & CHIP FILTER BAR (Thumb-zone) ---
+        item(key = "home_search_filters") {
+            SearchAndFilterSection(
+                selectedCategory = selectedCategory,
+                onCategorySelect = { category ->
+                    selectedCategory = category
+                    onCategoryClick(category)
+                },
+                onSearchClick = onSearchClick
+            )
+        }
+
+        // --- 4. FEED HEADER ---
+        item(key = "home_feed_header") {
+            FeedHeaderSection(
+                totalItems = filteredPosts.size,
+                selectedCategory = selectedCategory
+            )
+        }
+
+        // --- 5. PRODUCTS GRID OR EMPTY STATE ---
+        if (filteredPosts.isEmpty()) {
+            item(key = "home_empty_state") {
+                HomeEmptyState(
+                    onResetFilter = { selectedCategory = "Tất cả" }
                 )
-                .padding(top = 48.dp, start = 16.dp, end = 16.dp, bottom = 24.dp)
+            }
+        } else {
+            items(
+                items = chunkedPosts,
+                key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
+            ) { rowItems ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    for (post in rowItems) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            GridPostCard(
+                                post = post,
+                                onClick = { onPostClick(post) }
+                            )
+                        }
+                    }
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 1. Thanh Chào Đón & Định Vị Giảng Đường
+ */
+@Composable
+private fun CampusGreetingSection(
+    userName: String,
+    userUniversity: String,
+    onChatClick: () -> Unit,
+    onNotificationClick: () -> Unit
+) {
+    val shortName = remember(userName) {
+        userName.trim().split(' ').lastOrNull() ?: "Bạn"
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(start = 16.dp, end = 16.dp, top = 8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column {
-                // Top Row: Location & Icons
+            Column(modifier = Modifier.weight(1f)) {
+                // Tên thương hiệu & Lời chào thân thiện
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "StuMart",
+                        color = StuMartGreen,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Black
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(text = "🦆", fontSize = 18.sp)
+                }
+
+                Spacer(modifier = Modifier.height(2.dp))
+
+                // Vị trí trường đại học dạng chip gọn gàng
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(StuMartGreenContainer)
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.LocationOn,
+                        contentDescription = null,
+                        tint = StuMartGreen,
+                        modifier = Modifier.size(13.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = userUniversity,
+                        color = StuMartGreen,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
+            // Các nút hành động Chat & Thông báo (Đạt chuẩn 48dp touch target)
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Chat Icon Button
+                IconButton(
+                    onClick = onChatClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics {
+                            contentDescription = "Tin nhắn"
+                            role = Role.Button
+                        }
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Surface(
+                            shape = CircleShape,
+                            color = Color.White,
+                            shadowElevation = 1.dp,
+                            modifier = Modifier.size(38.dp)
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Icon(
+                                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                                    contentDescription = null,
+                                    tint = StuMartTextDark,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
+                        // Badge tin nhắn mới
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .offset(x = 2.dp, y = (-2).dp)
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(StuMartBadgeRed),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "3",
+                                color = Color.White,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                // Notification Icon Button
+                IconButton(
+                    onClick = onNotificationClick,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .semantics {
+                            contentDescription = "Thông báo"
+                            role = Role.Button
+                        }
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = Color.White,
+                        shadowElevation = 1.dp,
+                        modifier = Modifier.size(38.dp)
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(
+                                imageVector = Icons.Outlined.NotificationsNone,
+                                contentDescription = null,
+                                tint = StuMartTextDark,
+                                modifier = Modifier.size(21.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Câu chào hóm hỉnh sinh viên
+        Text(
+            text = "Chào $shortName! Hôm nay trường mình có gì hot?",
+            color = StuMartTextDark,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+/**
+ * 2. Cụm Bento Khám Phá Nhanh (Bento Quick Hub)
+ * Thiết kế 2 khối bất đối xứng: Góc 0đ & Săn Deal KTX
+ */
+@Composable
+private fun BentoQuickHub(
+    onFreeGiveawayClick: () -> Unit,
+    onDealsClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Khối Bento 1: Góc 0đ Cho Tặng
+        Surface(
+            onClick = onFreeGiveawayClick,
+            shape = RoundedCornerShape(18.dp),
+            color = StuMartGreenContainer,
+            border = BorderStroke(1.dp, StuMartGreen.copy(alpha = 0.15f)),
+            modifier = Modifier
+                .weight(1.15f)
+                .height(115.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Góc Cho Tặng 0đ: Nhận giáo trình và đồ dùng miễn phí"
+                }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("📍 ", fontSize = 14.sp)
-                            Text(
-                                text = userUniversity,
-                                color = StuMartYellow,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(StuMartGreen)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
                         Text(
-                            text = "StuMart",
+                            text = "🎁 GÓC 0Đ",
                             color = Color.White,
-                            fontSize = 28.sp,
+                            fontSize = 10.sp,
                             fontWeight = FontWeight.ExtraBold
                         )
                     }
-                    
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        // Chat Icon with badge
-                        Box {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.2f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("💬", fontSize = 16.sp)
-                            }
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(16.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Red),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text("3", color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                        // Notification Icon
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.2f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("🔔", fontSize = 16.sp)
-                        }
-                    }
+                    Text(text = "📚", fontSize = 16.sp)
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Column {
+                    Text(
+                        text = "Tủ đồ KTX Cho Tặng",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StuMartTextDark,
+                        lineHeight = 18.sp
+                    )
+                    Text(
+                        text = "Đồ dùng sinh viên miễn phí →",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = StuMartGreen
+                    )
+                }
+            }
+        }
 
-                // Search Bar
+        // Khối Bento 2: Săn Deal KTX Giảm tới 70%
+        Surface(
+            onClick = onDealsClick,
+            shape = RoundedCornerShape(18.dp),
+            color = StuMartCream,
+            border = BorderStroke(1.dp, StuMartOrange.copy(alpha = 0.25f)),
+            modifier = Modifier
+                .weight(0.95f)
+                .height(115.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Săn Deal KTX: Giảm giá tới 70%"
+                }
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(Color.White)
-                        .padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("🔍", fontSize = 18.sp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Tìm sách, laptop, quần áo...",
-                        color = StuMartTextGray,
-                        modifier = Modifier.weight(1f)
-                    )
                     Box(
                         modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(StuMartLightBackground),
-                        contentAlignment = Alignment.Center
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(StuMartOrange)
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
-                        Text("🦆", fontSize = 16.sp)
+                        Text(
+                            text = "⚡ HOT DEAL",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
                     }
+                    Text(text = "🔥", fontSize = 16.sp)
                 }
-            }
-        }
 
-        // --- BANNER SECTION ---
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .padding(horizontal = 16.dp)
-                .fillMaxWidth()
-                .height(130.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(StuMartGreen)
-                .padding(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.Center, modifier = Modifier.fillMaxHeight()) {
-                Text("Flash Sale 🔥", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("Giảm đến 70%", color = Color.White, fontWeight = FontWeight.ExtraBold, fontSize = 24.sp)
-                Text("Chỉ hôm nay!", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White)
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                ) {
-                    Text("Xem ngay →", color = StuMartGreen, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-            }
-        }
-
-        // --- CATEGORIES SECTION ---
-        Spacer(modifier = Modifier.height(24.dp))
-        Text(
-            text = "Danh mục",
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            color = StuMartTextDark,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        
-        Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-            Row(modifier = Modifier.fillMaxWidth()) {
-                CategoryItem("📚", "Sách", Modifier.weight(1f))
-                CategoryItem("💻", "Điện tử", Modifier.weight(1f))
-                CategoryItem("👕", "Thời trang", Modifier.weight(1f))
-                CategoryItem("🪑", "Nội thất", Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(modifier = Modifier.fillMaxWidth()) {
-                CategoryItem("🎮", "Giải trí", Modifier.weight(1f))
-                CategoryItem("🧴", "Làm đẹp", Modifier.weight(1f))
-                CategoryItem("🚲", "Xe cộ", Modifier.weight(1f))
-                CategoryItem("📦", "Khác", Modifier.weight(1f))
-            }
-        }
-
-        // --- DEAL HỜI HÔM NAY (LƯỚI 2 CỘT DÀI XUỐNG KIỂU SHOPEE) ---
-        Spacer(modifier = Modifier.height(28.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("⚡", fontSize = 22.sp)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "Deal hời hôm nay",
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 20.sp,
-                    color = StuMartTextDark
-                )
-            }
-            
-            // Countdown timer
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                TimeBox("01")
-                Text(":", fontWeight = FontWeight.Bold)
-                TimeBox("48")
-                Text(":", fontWeight = FontWeight.Bold)
-                TimeBox("22")
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Xen kẽ các sản phẩm "Bán thường" và "Giá rẻ"
-        val normalList = posts.filter { it.type == "Bán thường" }
-        val discountList = posts.filter { it.type == "Giá rẻ" }
-        
-        val mixedPosts = remember(posts) {
-            val list = mutableListOf<Post>()
-            val maxSize = maxOf(normalList.size, discountList.size)
-            for (i in 0 until maxSize) {
-                if (i < normalList.size) list.add(normalList[i])
-                if (i < discountList.size) list.add(discountList[i])
-            }
-            // Nếu không có đủ 2 loại thì lấy tất cả sản phẩm
-            if (list.isNotEmpty()) list else posts
-        }
-
-        if (mixedPosts.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(32.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🦆", fontSize = 48.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Column {
                     Text(
-                        text = "Chưa có sản phẩm nào.",
-                        color = StuMartTextGray,
-                        fontSize = 14.sp
+                        text = "Deal KTX -70%",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StuMartTextDark
                     )
-                }
-            }
-        } else {
-            val chunkedPosts = mixedPosts.chunked(2)
-            Column(
-                modifier = Modifier.padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                chunkedPosts.forEach { rowItems ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        for (post in rowItems) {
-                            Box(modifier = Modifier.weight(1f)) {
-                                GridPostCard(post)
-                            }
-                        }
-                        if (rowItems.size == 1) {
-                            Spacer(modifier = Modifier.weight(1f))
-                        }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Outlined.Schedule,
+                            contentDescription = null,
+                            tint = StuMartOrange,
+                            modifier = Modifier.size(11.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = "Kết thúc trong ngày",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = StuMartOrange
+                        )
                     }
                 }
             }
         }
-        
-        Spacer(modifier = Modifier.height(100.dp)) // padding cho Bottom Nav
     }
 }
 
+/**
+ * 3. Thanh Tìm Kiếm & Hàng Chip Danh Mục (Thumb-Zone)
+ */
 @Composable
-fun GridPostCard(post: Post) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val formattedPrice = if (post.price >= 1000000) {
-        "${(post.price / 1000000).toString().removeSuffix(".0")} triệu đ"
-    } else {
-        "${post.price.toInt()}đ"
-    }
+private fun SearchAndFilterSection(
+    selectedCategory: String,
+    onCategorySelect: (String) -> Unit,
+    onSearchClick: () -> Unit
+) {
+    val categories = listOf(
+        "Tất cả",
+        "📚 Sách",
+        "💻 Điện tử",
+        "👕 Thời trang",
+        "🛋️ KTX",
+        "🎁 Đồ 0đ",
+        "⚡ Deal rẻ",
+        "🎮 Giải trí",
+        "📦 Khác"
+    )
 
-    Card(
+    Column(modifier = Modifier.fillMaxWidth()) {
+        // Thanh tìm kiếm đặt trong tầm ngón cái
+        Surface(
+            onClick = onSearchClick,
+            shape = RoundedCornerShape(22.dp),
+            color = Color.White,
+            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+            shadowElevation = 1.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .height(48.dp)
+                .semantics {
+                    role = Role.Button
+                    contentDescription = "Tìm kiếm đồ dùng, giáo trình, phòng trọ"
+                }
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = null,
+                    tint = StuMartTextGray,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text(
+                    text = "Tìm giáo trình, laptop, đồ KTX...",
+                    color = StuMartTextGray,
+                    fontSize = 13.sp,
+                    modifier = Modifier.weight(1f)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(StuMartYellow.copy(alpha = 0.35f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("🦆", fontSize = 14.sp)
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Dòng Chip Danh Mục Trượt Ngang (Single-Row Horizontal Scroll)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            categories.forEach { category ->
+                val isSelected = category == selectedCategory
+                Surface(
+                    onClick = { onCategorySelect(category) },
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (isSelected) StuMartGreen else Color.White,
+                    border = BorderStroke(
+                        width = 1.dp,
+                        color = if (isSelected) StuMartGreen else Color(0xFFE5E7EB)
+                    ),
+                    modifier = Modifier.height(34.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = category,
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (isSelected) Color.White else StuMartTextDark
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 4. Tiêu Đề Khu Vực Danh Sách Món Đồ
+ */
+@Composable
+private fun FeedHeaderSection(
+    totalItems: Int,
+    selectedCategory: String
+) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(230.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        shape = RoundedCornerShape(12.dp)
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
+            Text(
+                text = if (selectedCategory == "Tất cả") "Mới lên kệ tại trường" else selectedCategory,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = StuMartTextDark
+            )
+            Text(
+                text = "$totalItems bài đăng quanh bạn",
+                fontSize = 12.sp,
+                color = StuMartTextGray
+            )
+        }
+
+        // Tag sinh viên xác thực
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .background(StuMartGreenContainer)
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(text = "🛡️ 100% Sinh viên", fontSize = 11.sp, color = StuMartGreen, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+/**
+ * 5. Thẻ Sản Phẩm Mở (Bỏ hoàn toàn Card-lồng-Card)
+ */
+@Composable
+fun GridPostCard(
+    post: Post,
+    onClick: () -> Unit = {}
+) {
+    val context = LocalContext.current
+    val formattedPrice = remember(post.price, post.type) {
+        when {
+            post.type == "Cho tặng" || post.price <= 0 -> "Miễn phí (0đ)"
+            post.price >= 1_000_000 -> "${(post.price / 1_000_000).toString().removeSuffix(".0")} triệu đ"
+            else -> "%,d đ".format(post.price.toInt()).replace(',', '.')
+        }
+    }
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(14.dp),
+        color = Color.White,
+        border = BorderStroke(0.5.dp, Color(0xFFE5E7EB)),
+        shadowElevation = 1.dp,
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics(mergeDescendants = true) {
+                role = Role.Button
+                contentDescription = "${post.title}, giá $formattedPrice, tình trạng ${post.condition}"
+            }
+    ) {
+        Column {
+            // Khung ảnh sản phẩm tràn viền mép trên
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(130.dp)
-                    .background(Color(0xFFFFF9E6)),
+                    .height(132.dp)
+                    .background(StuMartCream),
                 contentAlignment = Alignment.Center
             ) {
-                val isValidImage = !post.imageUrl.isNullOrBlank() && 
-                    (post.imageUrl.startsWith("http://") || post.imageUrl.startsWith("https://"))
+                val isValidImage = !post.imageUrl.isNullOrBlank() &&
+                        (post.imageUrl.startsWith("http://") || post.imageUrl.startsWith("https://"))
 
                 if (isValidImage) {
                     AsyncImage(
-                        model = coil.request.ImageRequest.Builder(context)
+                        model = ImageRequest.Builder(context)
                             .data(post.imageUrl)
                             .crossfade(true)
                             .build(),
@@ -325,104 +668,143 @@ fun GridPostCard(post: Post) {
                         contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text("🦆", fontSize = 48.sp)
-
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(6.dp)
-                            .size(20.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFE53935)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("!", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
-                    }
+                    // Fallback Mascot
+                    Text("🦆", fontSize = 44.sp)
                 }
 
-                // Nhãn phân loại loại tin đăng
-                val tagColor = if (post.type == "Giá rẻ") StuMartOrange else StuMartGreen
+                // Tag Loại bài đăng (Top-Start)
+                val badgeBg = when (post.type) {
+                    "Giá rẻ" -> StuMartOrange
+                    "Cho tặng" -> StuMartGreen
+                    "Trao đổi" -> Color(0xFF6750A4)
+                    else -> StuMartGreen
+                }
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopStart)
                         .clip(RoundedCornerShape(bottomEnd = 8.dp))
-                        .background(tagColor)
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .background(badgeBg)
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
                 ) {
-                    Text(post.type, color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = post.type,
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.ExtraBold
+                    )
+                }
+
+                // Tag Tình trạng (Top-End)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color.White.copy(alpha = 0.90f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = post.condition,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StuMartTextDark
+                    )
                 }
             }
 
-            Column(modifier = Modifier.padding(10.dp)) {
+            // Phần thân hiển thị thông tin sản phẩm (Dòng chảy liền mạch, không hộp lồng hộp)
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(10.dp)
+            ) {
+                // Tiêu đề
                 Text(
                     text = post.title,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = StuMartTextDark
+                    color = StuMartTextDark,
+                    lineHeight = 17.sp
                 )
 
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(6.dp))
 
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(4.dp))
-                            .background(Color.LightGray.copy(alpha = 0.4f))
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    ) {
-                        Text(post.condition, fontSize = 9.sp, color = StuMartTextGray)
-                    }
-                    Spacer(modifier = Modifier.width(4.dp))
+                // Dòng người bán & vị trí giao dịch
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.Person,
+                        contentDescription = null,
+                        tint = StuMartTextGray,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Spacer(modifier = Modifier.width(3.dp))
                     Text(
                         text = post.sellerName ?: "Sinh viên",
-                        fontSize = 10.sp,
+                        fontSize = 11.sp,
                         color = StuMartTextGray,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.height(8.dp))
 
-                // GIÁ TIỀN MỌI MÓN HÀNG ĐỀU MÀU CAM (StuMartOrange)
+                // Mức giá nổi bật
                 Text(
                     text = formattedPrice,
                     fontSize = 15.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    color = StuMartOrange
+                    fontWeight = FontWeight.Black,
+                    color = if (post.type == "Cho tặng" || post.price <= 0) StuMartGreen else StuMartOrange
                 )
             }
         }
     }
 }
 
+/**
+ * Trạng thái trống (Empty State)
+ */
 @Composable
-fun CategoryItem(emoji: String, title: String, modifier: Modifier = Modifier) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        Box(
-            modifier = Modifier
-                .size(60.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(Color.White),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(emoji, fontSize = 28.sp)
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(title, fontSize = 12.sp, color = StuMartTextDark, fontWeight = FontWeight.Medium)
-    }
-}
-
-@Composable
-fun TimeBox(time: String) {
+private fun HomeEmptyState(
+    onResetFilter: () -> Unit
+) {
     Box(
         modifier = Modifier
-            .clip(RoundedCornerShape(4.dp))
-            .background(Color.Black)
-            .padding(horizontal = 4.dp, vertical = 2.dp)
+            .fillMaxWidth()
+            .padding(vertical = 40.dp, horizontal = 24.dp),
+        contentAlignment = Alignment.Center
     ) {
-        Text(time, color = StuMartYellow, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("🦆", fontSize = 54.sp)
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                text = "Chưa có món đồ nào trong mục này!",
+                color = StuMartTextDark,
+                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Hãy thử chọn danh mục khác hoặc là người đầu tiên đăng bán nhé.",
+                color = StuMartTextGray,
+                fontSize = 13.sp,
+                lineHeight = 18.sp
+            )
+            Spacer(modifier = Modifier.height(14.dp))
+            OutlinedButton(
+                onClick = onResetFilter,
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(1.dp, StuMartGreen),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = StuMartGreen)
+            ) {
+                Text("Xem tất cả bài đăng", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            }
+        }
     }
 }

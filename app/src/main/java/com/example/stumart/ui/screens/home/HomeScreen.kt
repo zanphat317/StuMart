@@ -19,6 +19,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.stumart.data.supabase.Post
+import com.example.stumart.ui.screens.ProductDetailScreen
 import com.example.stumart.ui.screens.home.tabs.DiscountTab
 import com.example.stumart.ui.screens.home.tabs.HomeTab
 import com.example.stumart.ui.screens.home.tabs.LiveTab
@@ -42,6 +44,15 @@ fun HomeScreen(
 ) {
     var currentRoute by remember { mutableStateOf(HomeRoute.Home) }
     var showPostBottomSheet by remember { mutableStateOf(false) }
+    var selectedPost by remember { mutableStateOf<Post?>(null) }
+
+    if (selectedPost != null) {
+        ProductDetailScreen(
+            post = selectedPost!!,
+            onBackClick = { selectedPost = null }
+        )
+        return
+    }
 
     Scaffold(
         bottomBar = {
@@ -55,7 +66,11 @@ fun HomeScreen(
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
             when (currentRoute) {
-                HomeRoute.Home -> HomeTab(userUniversity = userUniversity)
+                HomeRoute.Home -> HomeTab(
+                    userName = userName,
+                    userUniversity = userUniversity,
+                    onPostClick = { selectedPost = it }
+                )
                 HomeRoute.Discount -> DiscountTab()
                 HomeRoute.Live -> LiveTab()
                 HomeRoute.Profile -> ProfileTab(
@@ -100,18 +115,21 @@ fun CustomBottomNavigation(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(80.dp), // Tăng chiều cao Box chứa để có chỗ cho nút nổi
+            .wrapContentHeight(),
         contentAlignment = Alignment.BottomCenter
     ) {
         Surface(
             color = Color.White,
             shadowElevation = 8.dp,
-            modifier = Modifier.fillMaxWidth()
+            shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp, vertical = 8.dp)
+                    .padding(horizontal = 4.dp, vertical = 6.dp)
                     .height(60.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
@@ -131,7 +149,7 @@ fun CustomBottomNavigation(
                     modifier = Modifier.weight(1f)
                 )
 
-                Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1.1f))
 
                 BottomNavItem(
                     icon = Icons.Default.FlashOn,
@@ -150,36 +168,38 @@ fun CustomBottomNavigation(
             }
         }
 
+        // Hero Voltage Duck Floating Action Button
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
-                .offset(y = (-10).dp)
+                .navigationBarsPadding()
+                .offset(y = (-14).dp)
                 .clickable { onPostClick() }
         ) {
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .shadow(8.dp, CircleShape)
+                    .size(58.dp)
+                    .shadow(8.dp, CircleShape, spotColor = Color(0x66FFD21E))
                     .clip(CircleShape)
                     .background(StuMartYellow)
-                    .padding(4.dp)
+                    .padding(3.dp)
             ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.2f)),
+                        .background(Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("🦆", fontSize = 28.sp)
                 }
             }
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(3.dp))
             Text(
                 text = "Đăng bán",
                 fontSize = 11.sp,
                 color = StuMartGreen,
-                fontWeight = FontWeight.Bold
+                fontWeight = FontWeight.ExtraBold
             )
         }
     }
@@ -193,26 +213,30 @@ fun BottomNavItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val color = if (isSelected) StuMartGreen else Color.Gray
+    val color = if (isSelected) StuMartGreen else Color(0xFF6B7280)
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.clickable { onClick() }
+        verticalArrangement = Arrangement.Center,
+        modifier = modifier
+            .fillMaxHeight()
+            .clickable { onClick() }
+            .padding(vertical = 4.dp)
     ) {
         Icon(
             imageVector = icon,
             contentDescription = label,
             tint = color,
-            modifier = Modifier.size(24.dp)
+            modifier = Modifier.size(23.dp)
         )
-        Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
             text = label,
             fontSize = 11.sp,
             color = color,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
         )
         if (isSelected) {
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Box(
                 modifier = Modifier
                     .size(4.dp)
