@@ -170,9 +170,9 @@ fun LoginScreen(
                             val msg = e.message ?: ""
                             val userFriendlyMsg = when {
                                 msg.contains("Invalid login credentials", ignoreCase = true) -> 
-                                    "Sai Email hoặc Mật khẩu! (Hoặc chưa TẮT 'Confirm email' trên Supabase Dashboard)"
+                                    "Sai Email hoặc Mật khẩu!"
                                 msg.contains("Email not confirmed", ignoreCase = true) -> 
-                                    "Email chưa được xác thực! Hãy kiểm tra hòm thư hoặc TẮT 'Confirm email' trên Supabase."
+                                    "Email chưa được xác thực! Hãy kiểm tra hòm thư"
                                 msg.contains("Unable to resolve host", ignoreCase = true) || msg.contains("ConnectException", ignoreCase = true) -> 
                                     "Lỗi kết nối mạng. Vui lòng kiểm tra Internet!"
                                 else -> "Lỗi đăng nhập: $msg"
