@@ -4,10 +4,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -156,6 +158,7 @@ fun ForgotPasswordScreen(
                         email = email,
                         otp = otp,
                         onOtpChange = { otp = it },
+                        isLoading = isLoading,
                         onNext = {
                             if (otp.length < 6) {
                                 Toast.makeText(context, "Vui lòng nhập đủ 6 số OTP", Toast.LENGTH_SHORT).show()
@@ -417,12 +420,14 @@ fun OtpStepContent(
     otp: String,
     onOtpChange: (String) -> Unit,
     onNext: () -> Unit,
-    onResend: () -> Unit
+    onResend: () -> Unit,
+    isLoading: Boolean = false,
+    buttonText: String = "Xác nhận mã OTP"
 ) {
-    var timeLeft by remember { mutableStateOf(300) } // 300 giây = 5 phút
+    var timeLeft by rememberSaveable { mutableStateOf(300) } // 300 giây = 5 phút
 
-    LaunchedEffect(timeLeft) {
-        if (timeLeft > 0) {
+    LaunchedEffect(key1 = timeLeft > 0) {
+        while (timeLeft > 0) {
             kotlinx.coroutines.delay(1000L)
             timeLeft -= 1
         }
@@ -430,7 +435,11 @@ fun OtpStepContent(
 
     val formattedTime = java.lang.String.format(java.util.Locale.getDefault(), "%02d:%02d", timeLeft / 60, timeLeft % 60)
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
         Text(
             text = "Nhập mã xác thực",
             fontSize = 28.sp,
@@ -465,37 +474,40 @@ fun OtpStepContent(
         // OTP Input
         BasicTextField(
             value = otp,
-            onValueChange = { if (it.length <= 6) onOtpChange(it) },
+            onValueChange = { if (it.length <= 6 && it.all { char -> char.isDigit() }) onOtpChange(it) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
-            decorationBox = {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    repeat(6) { index ->
-                        val char = when {
-                            index >= otp.length -> ""
-                            else -> otp[index].toString()
-                        }
-                        val isFocused = otp.length == index
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .aspectRatio(0.8f)
-                                .background(Color.White, RoundedCornerShape(12.dp))
-                                .border(
-                                    1.dp,
-                                    if (isFocused) StuMartOrange else Color.LightGray,
-                                    RoundedCornerShape(12.dp)
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = char,
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = StuMartTextDark
-                            )
+            decorationBox = { innerTextField ->
+                Box {
+                    Box(modifier = Modifier.size(0.dp)) { innerTextField() }
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        repeat(6) { index ->
+                            val char = when {
+                                index >= otp.length -> ""
+                                else -> otp[index].toString()
+                            }
+                            val isFocused = otp.length == index
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(0.8f)
+                                    .background(Color.White, RoundedCornerShape(12.dp))
+                                    .border(
+                                        1.dp,
+                                        if (isFocused) StuMartOrange else Color.LightGray,
+                                        RoundedCornerShape(12.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = char,
+                                    fontSize = 24.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = StuMartTextDark
+                                )
+                            }
                         }
                     }
                 }
@@ -524,9 +536,9 @@ fun OtpStepContent(
                 text = "Gửi lại mã",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (timeLeft == 0) StuMartGreen else Color.Gray,
+                color = if (timeLeft == 0 && !isLoading) StuMartGreen else Color.Gray,
                 modifier = Modifier
-                    .clickable(enabled = timeLeft == 0) {
+                    .clickable(enabled = timeLeft == 0 && !isLoading) {
                         timeLeft = 300 // Reset lại thời gian 5 phút
                         onResend()
                     }
@@ -543,9 +555,13 @@ fun OtpStepContent(
                 .height(56.dp),
             colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen),
             shape = RoundedCornerShape(16.dp),
-            enabled = otp.length == 6
+            enabled = otp.length == 6 && !isLoading
         ) {
-            Text("Xác nhận mã OTP", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            if (isLoading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text(buttonText, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
