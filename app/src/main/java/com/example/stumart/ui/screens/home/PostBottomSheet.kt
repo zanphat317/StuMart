@@ -353,6 +353,8 @@ fun PostBottomSheetContent(
                                 condition = condition,
                                 description = description,
                                 category = selectedCategory,
+                                sellerName = sellerName,
+                                location = userLoc,
                                 imageUrl = finalImageUrl
                             )
                             PostRepository.updatePost(updatedPost)

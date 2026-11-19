@@ -73,7 +73,10 @@ class MainActivity : ComponentActivity() {
                                 userUniversity = userUniversity,
                                 shouldShowSurvey = shouldShowSurvey,
                                 onSurveyDismissed = { shouldShowSurvey = false },
-                                onUniversityChange = { userUniversity = it },
+                                onProfileChange = { name, uni ->
+                                    userName = name
+                                    userUniversity = uni
+                                },
                                 onLogout = { currentScreen = Screen.Login }
                             )
                         }

@@ -75,4 +75,27 @@ object PostRepository {
             Log.e("POST_REPO", "Lỗi khi xóa bài đăng trên Supabase: ${e.message}", e)
         }
     }
+
+    suspend fun updateSellerInfoForUser(userId: String, newName: String, newUniversity: String) {
+        val updatedList = _posts.value.map { post ->
+            if (post.userId == userId) {
+                post.copy(sellerName = newName, location = newUniversity)
+            } else {
+                post
+            }
+        }
+        _posts.value = updatedList
+
+        try {
+            SupabaseClient.client.postgrest["posts"].update({
+                set("seller_name", newName)
+                set("location", newUniversity)
+            }) {
+                filter { eq("user_id", userId) }
+            }
+            fetchPosts()
+        } catch (e: Exception) {
+            Log.e("POST_REPO", "Lỗi cập nhật tên người bán trên Supabase: ${e.message}", e)
+        }
+    }
 }

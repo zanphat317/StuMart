@@ -18,20 +18,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import android.widget.Toast
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
 import com.example.stumart.data.supabase.SupabaseClient
+import com.example.stumart.data.supabase.UserProfile
 import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.coroutines.launch
 import com.example.stumart.ui.theme.*
 
 @Composable
 fun ProfileTab(
     userName: String,
     userUniversity: String,
-    onUniversityChange: (String) -> Unit,
+    onProfileChange: (name: String, university: String) -> Unit = { _, _ -> },
     onPostClick: (Post) -> Unit = {},
     onEditPostClick: (Post) -> Unit = {},
     onNewPostClick: () -> Unit = {},
@@ -39,6 +49,8 @@ fun ProfileTab(
 ) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
     val posts by PostRepository.posts.collectAsState()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     val currentUserId = remember { SupabaseClient.client.auth.currentUserOrNull()?.id }
     val myPosts = remember(posts, currentUserId, userName) {
@@ -51,11 +63,32 @@ fun ProfileTab(
 
     if (showEditProfileDialog) {
         EditProfileDialog(
+            currentName = userName,
             currentUniversity = userUniversity,
             onDismiss = { showEditProfileDialog = false },
-            onSave = { newUni ->
-                onUniversityChange(newUni)
-                showEditProfileDialog = false
+            onSave = { newName, newUni, newStudentId, newPhone ->
+                coroutineScope.launch {
+                    try {
+                        val currentUser = SupabaseClient.client.auth.currentUserOrNull()
+                        if (currentUser != null) {
+                            val updatedProfile = UserProfile(
+                                id = currentUser.id,
+                                email = currentUser.email,
+                                fullName = newName,
+                                studentId = newStudentId,
+                                university = newUni,
+                                phone = newPhone
+                            )
+                            SupabaseClient.client.postgrest["profiles"].upsert(updatedProfile)
+                            PostRepository.updateSellerInfoForUser(currentUser.id, newName, newUni)
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    onProfileChange(newName, newUni)
+                    Toast.makeText(context, "Cập nhật hồ sơ cá nhân thành công!", Toast.LENGTH_SHORT).show()
+                    showEditProfileDialog = false
+                }
             }
         )
     }
@@ -305,12 +338,18 @@ fun BadgeItem(emoji: String, label: String, borderColor: Color) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EditProfileDialog(
+    currentName: String,
     currentUniversity: String,
     onDismiss: () -> Unit,
-    onSave: (String) -> Unit
+    onSave: (name: String, university: String, studentId: String, phone: String) -> Unit
 ) {
+    var fullName by remember { mutableStateOf(currentName) }
     var university by remember { mutableStateOf(currentUniversity) }
+    var studentId by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var expanded by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     val universities = listOf(
         "ĐH Bách Khoa TP.HCM (ĐHQG-HCM)",
@@ -322,15 +361,65 @@ fun EditProfileDialog(
         "ĐH An Giang (ĐHQG-HCM)"
     )
 
+    // Tự động tải hồ sơ cá nhân hiện tại từ Supabase nếu có
+    LaunchedEffect(Unit) {
+        try {
+            val currentUser = SupabaseClient.client.auth.currentUserOrNull()
+            if (currentUser != null) {
+                val profile = SupabaseClient.client.postgrest["profiles"]
+                    .select { filter { eq("id", currentUser.id) } }
+                    .decodeSingleOrNull<UserProfile>()
+                if (profile != null) {
+                    if (!profile.fullName.isNullOrBlank()) fullName = profile.fullName
+                    if (!profile.university.isNullOrBlank()) university = profile.university
+                    if (!profile.studentId.isNullOrBlank()) studentId = profile.studentId
+                    if (!profile.phone.isNullOrBlank()) phone = profile.phone
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(text = "Đổi trường học/Khu vực", fontWeight = FontWeight.Bold, color = StuMartGreen)
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("⚙️", fontSize = 20.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = "Chỉnh sửa trang cá nhân", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = StuMartGreen)
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Cập nhật thông tin tài khoản và thông tin sinh viên", fontSize = 12.sp, color = StuMartTextGray)
+            }
         },
         text = {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(text = "Trường học/Khu vực", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // 1. Họ và tên
+                Text(text = "Họ và tên", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = { fullName = it },
+                    placeholder = { Text("Nhập họ và tên sinh viên") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = StuMartGreen
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 2. Trường học / Khu vực
+                Text(text = "Trường đại học / Khu vực", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(4.dp))
                 ExposedDropdownMenuBox(
                     expanded = expanded,
                     onExpandedChange = { expanded = !expanded }
@@ -343,15 +432,18 @@ fun EditProfileDialog(
                             .menuAnchor(),
                         readOnly = false,
                         placeholder = { Text("Chọn hoặc nhập trường") },
+                        shape = RoundedCornerShape(12.dp),
                         trailingIcon = {
                             ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
                         },
-                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors()
+                        colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = StuMartGreen
+                        )
                     )
                     ExposedDropdownMenu(
                         expanded = expanded,
                         onDismissRequest = { expanded = false },
-                        modifier = Modifier.heightIn(max = 250.dp)
+                        modifier = Modifier.heightIn(max = 200.dp)
                     ) {
                         val filteredList = if (university.isBlank()) universities else universities.filter { it.contains(university, ignoreCase = true) }
                         filteredList.forEach { selectionOption ->
@@ -365,21 +457,65 @@ fun EditProfileDialog(
                         }
                     }
                 }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 3. Mã số sinh viên (MSSV)
+                Text(text = "Mã số sinh viên (MSSV)", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = studentId,
+                    onValueChange = { studentId = it },
+                    placeholder = { Text("VD: 20216001") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = StuMartGreen
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 4. Số điện thoại
+                Text(text = "Số điện thoại liên hệ", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(4.dp))
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    placeholder = { Text("VD: 0987654321") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = StuMartGreen
+                    )
+                )
             }
         },
         confirmButton = {
             Button(
-                onClick = { onSave(university) },
-                colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen)
+                onClick = {
+                    if (fullName.isBlank() || university.isBlank()) {
+                        Toast.makeText(context, "Vui lòng nhập Họ tên và Trường học", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    onSave(fullName.trim(), university.trim(), studentId.trim(), phone.trim())
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen),
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Text("Lưu lại")
+                Text("Lưu thay đổi", fontWeight = FontWeight.Bold, color = Color.White)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Hủy", color = Color.Gray)
             }
-        }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp)
     )
 }
 
@@ -439,7 +575,17 @@ fun MyProductCard(
                     color = StuMartTextDark,
                     maxLines = 1
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "👤 ${if (!post.sellerName.isNullOrBlank()) post.sellerName else "Sinh viên"}",
+                        fontSize = 10.sp,
+                        color = StuMartTextGray,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = formattedPrice,
                     fontSize = 14.sp,

@@ -39,10 +39,12 @@ fun HomeScreen(
     userUniversity: String = "ĐH Bách Khoa Hà Nội",
     shouldShowSurvey: Boolean = false,
     onSurveyDismissed: () -> Unit = {},
-    onUniversityChange: (String) -> Unit = {},
+    onProfileChange: (name: String, university: String) -> Unit = { _, _ -> },
     onLogout: () -> Unit
 ) {
     var currentRoute by remember { mutableStateOf(HomeRoute.Home) }
+    var currentUserName by remember(userName) { mutableStateOf(userName) }
+    var currentUserUniversity by remember(userUniversity) { mutableStateOf(userUniversity) }
     var showPostBottomSheet by remember { mutableStateOf(false) }
     var postToEdit by remember { mutableStateOf<Post?>(null) }
     var selectedPost by remember { mutableStateOf<Post?>(null) }
@@ -77,16 +79,20 @@ fun HomeScreen(
         Box(modifier = Modifier.padding(paddingValues)) {
             when (currentRoute) {
                 HomeRoute.Home -> HomeTab(
-                    userName = userName,
-                    userUniversity = userUniversity,
+                    userName = currentUserName,
+                    userUniversity = currentUserUniversity,
                     onPostClick = { selectedPost = it }
                 )
                 HomeRoute.Discount -> DiscountTab()
                 HomeRoute.Live -> LiveTab()
                 HomeRoute.Profile -> ProfileTab(
-                    userName = userName,
-                    userUniversity = userUniversity,
-                    onUniversityChange = onUniversityChange,
+                    userName = currentUserName,
+                    userUniversity = currentUserUniversity,
+                    onProfileChange = { newName, newUni ->
+                        currentUserName = newName
+                        currentUserUniversity = newUni
+                        onProfileChange(newName, newUni)
+                    },
                     onPostClick = { selectedPost = it },
                     onEditPostClick = { post ->
                         postToEdit = post
