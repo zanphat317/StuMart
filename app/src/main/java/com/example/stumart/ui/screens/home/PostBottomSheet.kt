@@ -1,5 +1,6 @@
 package com.example.stumart.ui.screens.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,18 +43,28 @@ import com.example.stumart.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PostBottomSheetContent(onDismiss: () -> Unit) {
-    var productName by remember { mutableStateOf("") }
-    var price by remember { mutableStateOf("") }
-    var condition by remember { mutableStateOf("Mới") }
-    var description by remember { mutableStateOf("") }
+fun PostBottomSheetContent(
+    postToEdit: Post? = null,
+    onDismiss: () -> Unit
+) {
+    var productName by remember(postToEdit) { mutableStateOf(postToEdit?.title ?: "") }
+    var price by remember(postToEdit) {
+        mutableStateOf(
+            if (postToEdit != null) {
+                if (postToEdit.price % 1.0 == 0.0) postToEdit.price.toLong().toString() else postToEdit.price.toString()
+            } else ""
+        )
+    }
+    var condition by remember(postToEdit) { mutableStateOf(postToEdit?.condition ?: "Mới") }
+    var description by remember(postToEdit) { mutableStateOf(postToEdit?.description ?: "") }
     
-    var selectedType by remember { mutableStateOf("Bán thường") }
-    var selectedCategory by remember { mutableStateOf("Khác") }
+    var selectedType by remember(postToEdit) { mutableStateOf(postToEdit?.type ?: "Bán thường") }
+    var selectedCategory by remember(postToEdit) { mutableStateOf(postToEdit?.category ?: "Sách / Giáo trình") }
     var isLoading by remember { mutableStateOf(false) }
     
-    // Quản lý danh sách ảnh (Uris)
+    // Quản lý danh sách ảnh (Uris) & Ảnh đã có sẵn
     var imageUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var existingImageUrl by remember(postToEdit) { mutableStateOf(postToEdit?.imageUrl) }
     
     // Launcher mở thư viện ảnh chọn nhiều
     val multiplePhotoPickerLauncher = rememberLauncherForActivityResult(
@@ -81,9 +92,14 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("📦", fontSize = 24.sp)
+                Text(if (postToEdit != null) "✏️" else "📦", fontSize = 24.sp)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Đăng tin mới", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = StuMartTextDark)
+                Text(
+                    text = if (postToEdit != null) "Chỉnh sửa bài đăng" else "Đăng tin mới",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = StuMartTextDark
+                )
             }
             IconButton(onClick = onDismiss) {
                 Icon(Icons.Default.Close, contentDescription = "Close", tint = StuMartTextGray)
@@ -101,6 +117,36 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
             item { PostTypeChip(icon = "🎁", label = "Cho tặng", isSelected = selectedType == "Cho tặng", onClick = { selectedType = "Cho tặng" }) }
             item { PostTypeChip(icon = "🔨", label = "Đấu giá", isSelected = selectedType == "Đấu giá", onClick = { selectedType = "Đấu giá" }) }
             item { PostTypeChip(icon = "❓", label = "Túi mù", isSelected = selectedType == "Túi mù", onClick = { selectedType = "Túi mù" }) }
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        // Danh mục sản phẩm
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Danh mục sản phẩm", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = StuMartTextDark)
+            Text(" *", color = Color.Red, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        }
+        Spacer(modifier = Modifier.height(8.dp))
+        val categoriesList = remember {
+            listOf(
+                Triple("📚", "Sách / Giáo trình", "Sách / Giáo trình"),
+                Triple("💻", "Đồ điện tử", "Đồ điện tử"),
+                Triple("👕", "Thời trang", "Thời trang"),
+                Triple("🛋️", "Đồ dùng KTX", "Đồ dùng KTX"),
+                Triple("🎮", "Giải trí", "Giải trí"),
+                Triple("📦", "Khác", "Khác")
+            )
+        }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            items(categoriesList.size) { index ->
+                val (icon, label, value) = categoriesList[index]
+                CategoryChip(
+                    icon = icon,
+                    label = label,
+                    isSelected = selectedCategory == value,
+                    onClick = { selectedCategory = value }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -135,6 +181,16 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                         Text("+", fontSize = 24.sp, color = StuMartGreen, fontWeight = FontWeight.Bold)
                         Text("Thêm ảnh", fontSize = 10.sp, color = StuMartGreen, fontWeight = FontWeight.Medium)
                     }
+                }
+            }
+
+            // Ảnh đã chọn trước đó (nếu đang chỉnh sửa)
+            if (!existingImageUrl.isNullOrBlank() && imageUris.isEmpty()) {
+                item {
+                    SelectedExistingImageItem(
+                        imageUrl = existingImageUrl!!,
+                        onRemove = { existingImageUrl = null }
+                    )
                 }
             }
 
@@ -281,22 +337,43 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
                             }
                         }
 
-                        val newPost = Post(
-                            title = productName,
-                            type = selectedType,
-                            price = priceValue,
-                            condition = condition,
-                            description = description,
-                            category = selectedCategory,
-                            sellerName = sellerName,
-                            location = userLoc,
-                            imageUrl = uploadedImageUrl,
-                            userId = currentUser?.id
-                        )
+                        val finalImageUrl = uploadedImageUrl ?: existingImageUrl
+
+                        if (postToEdit != null) {
+                            // Kiểm tra phân quyền chính chủ
+                            if (currentUser != null && !postToEdit.userId.isNullOrBlank() && postToEdit.userId != currentUser.id) {
+                                Toast.makeText(context, "Bạn chỉ có thể chỉnh sửa bài đăng của chính mình!", Toast.LENGTH_LONG).show()
+                                return@launch
+                            }
+
+                            val updatedPost = postToEdit.copy(
+                                title = productName,
+                                type = selectedType,
+                                price = priceValue,
+                                condition = condition,
+                                description = description,
+                                category = selectedCategory,
+                                imageUrl = finalImageUrl
+                            )
+                            PostRepository.updatePost(updatedPost)
+                            Toast.makeText(context, "Cập nhật bài đăng thành công!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            val newPost = Post(
+                                title = productName,
+                                type = selectedType,
+                                price = priceValue,
+                                condition = condition,
+                                description = description,
+                                category = selectedCategory,
+                                sellerName = sellerName,
+                                location = userLoc,
+                                imageUrl = finalImageUrl,
+                                userId = currentUser?.id
+                            )
+                            PostRepository.createPost(newPost)
+                            Toast.makeText(context, "Đăng tin thành công!", Toast.LENGTH_SHORT).show()
+                        }
                         
-                        PostRepository.createPost(newPost)
-                        
-                        Toast.makeText(context, "Đăng tin thành công!", Toast.LENGTH_SHORT).show()
                         onDismiss()
                     } catch (e: Exception) {
                         Toast.makeText(context, "Lỗi kết nối: ${e.message}", Toast.LENGTH_LONG).show()
@@ -315,11 +392,69 @@ fun PostBottomSheetContent(onDismiss: () -> Unit) {
             if (isLoading) {
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
-                Text("Đăng tin ngay", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text(
+                    text = if (postToEdit != null) "Cập nhật bài đăng" else "Đăng tin ngay",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
         }
         
         Spacer(modifier = Modifier.height(32.dp)) // Padding dưỡi cùng
+    }
+}
+
+@Composable
+fun SelectedExistingImageItem(imageUrl: String, onRemove: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(80.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color.LightGray)
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = "Existing Image",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .padding(4.dp)
+                .size(20.dp)
+                .clip(CircleShape)
+                .background(Color.Black.copy(alpha = 0.5f))
+                .clickable { onRemove() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text("×", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+@Composable
+fun CategoryChip(icon: String, label: String, isSelected: Boolean, onClick: () -> Unit) {
+    val borderColor = if (isSelected) StuMartGreen else Color(0xFFE5E7EB)
+    val backgroundColor = if (isSelected) StuMartGreenContainer else Color.White
+    val textColor = if (isSelected) StuMartGreen else StuMartTextDark
+    val fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(12.dp),
+        color = backgroundColor,
+        border = BorderStroke(if (isSelected) 1.5.dp else 1.dp, borderColor)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(icon, fontSize = 16.sp)
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(label, fontSize = 13.sp, color = textColor, fontWeight = fontWeight)
+        }
     }
 }
 

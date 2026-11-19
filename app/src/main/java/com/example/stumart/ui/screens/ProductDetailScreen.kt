@@ -42,6 +42,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.stumart.data.supabase.Post
+import com.example.stumart.data.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import com.example.stumart.ui.theme.*
 
 /**
@@ -54,10 +56,20 @@ fun ProductDetailScreen(
     post: Post,
     onBackClick: () -> Unit,
     onContactSeller: (Post) -> Unit = {},
+    onEditClick: ((Post) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+
+    val currentUserId = remember { SupabaseClient.client.auth.currentUserOrNull()?.id }
+    val isOwner = remember(post, currentUserId) {
+        if (!currentUserId.isNullOrBlank()) {
+            post.userId == currentUserId
+        } else {
+            post.userId == null
+        }
+    }
 
     var isFavorite by remember { mutableStateOf(false) }
     var showOfferSheet by remember { mutableStateOf(false) }
@@ -173,6 +185,20 @@ fun ProductDetailScreen(
                             contentDescription = "Báo cáo vi phạm",
                             tint = StuMartTextGray
                         )
+                    }
+
+                    // Nút Chỉnh sửa bài đăng (Edit - Chỉ hiển thị cho chính chủ bài đăng)
+                    if (onEditClick != null && isOwner) {
+                        IconButton(
+                            onClick = { onEditClick(post) },
+                            modifier = Modifier.minimumInteractiveComponentSize()
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Chỉnh sửa tin",
+                                tint = StuMartGreen
+                            )
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(

@@ -44,4 +44,35 @@ object PostRepository {
             Log.e("POST_REPO", "Lỗi khi đăng bài lên Supabase: ${e.message}", e)
         }
     }
+
+    suspend fun updatePost(post: Post) {
+        // Cập nhật ngay bài vừa sửa trong danh sách địa phương
+        val updatedList = _posts.value.map { existing ->
+            if (existing.id != null && existing.id == post.id) post else existing
+        }
+        _posts.value = updatedList
+
+        try {
+            if (post.id != null) {
+                SupabaseClient.client.postgrest["posts"].update(post) {
+                    filter { eq("id", post.id) }
+                }
+            }
+            fetchPosts()
+        } catch (e: Exception) {
+            Log.e("POST_REPO", "Lỗi khi cập nhật bài đăng trên Supabase: ${e.message}", e)
+        }
+    }
+
+    suspend fun deletePost(postId: Long) {
+        _posts.value = _posts.value.filter { it.id != postId }
+        try {
+            SupabaseClient.client.postgrest["posts"].delete {
+                filter { eq("id", postId) }
+            }
+            fetchPosts()
+        } catch (e: Exception) {
+            Log.e("POST_REPO", "Lỗi khi xóa bài đăng trên Supabase: ${e.message}", e)
+        }
+    }
 }

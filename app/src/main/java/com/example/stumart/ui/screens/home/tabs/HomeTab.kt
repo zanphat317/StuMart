@@ -1,6 +1,11 @@
 package com.example.stumart.ui.screens.home.tabs
 
+import android.net.Uri
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -10,7 +15,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
@@ -19,6 +27,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -56,113 +66,145 @@ fun HomeTab(
 ) {
     val posts by PostRepository.posts.collectAsState()
     var selectedCategory by remember { mutableStateOf("Tất cả") }
+    var searchQuery by remember { mutableStateOf("") }
+    var showAISearchDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         PostRepository.fetchPosts()
     }
 
-    // Lọc bài đăng theo danh mục được chọn
-    val filteredPosts = remember(posts, selectedCategory) {
-        if (selectedCategory == "Tất cả") {
-            posts
-        } else if (selectedCategory == "🎁 Đồ 0đ") {
-            posts.filter { it.type == "Cho tặng" || it.price <= 0 }
-        } else if (selectedCategory == "⚡ Deal rẻ") {
-            posts.filter { it.type == "Giá rẻ" }
-        } else {
-            posts.filter {
-                val cat = it.category ?: "Khác"
+    // Lọc bài đăng theo danh mục và từ khóa tìm kiếm AI
+    val filteredPosts = remember(posts, selectedCategory, searchQuery) {
+        posts.filter { post ->
+            val matchesCategory = if (selectedCategory == "Tất cả") {
+                true
+            } else if (selectedCategory == "🎁 Đồ 0đ") {
+                post.type == "Cho tặng" || post.price <= 0
+            } else if (selectedCategory == "⚡ Deal rẻ") {
+                post.type == "Giá rẻ"
+            } else {
+                val cat = post.category ?: "Khác"
                 cat.contains(selectedCategory.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), ""), ignoreCase = true) ||
-                        it.title.contains(selectedCategory.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), ""), ignoreCase = true)
+                        post.title.contains(selectedCategory.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), ""), ignoreCase = true)
             }
+
+            val matchesSearch = if (searchQuery.isBlank()) {
+                true
+            } else {
+                val q = searchQuery.trim().lowercase()
+                post.title.lowercase().contains(q) ||
+                        post.description.lowercase().contains(q) ||
+                        (post.category ?: "").lowercase().contains(q)
+            }
+
+            matchesCategory && matchesSearch
         }
     }
 
     // Chia bài đăng thành 2 cột cho LazyColumn
     val chunkedPosts = remember(filteredPosts) { filteredPosts.chunked(2) }
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(StuMartLightBackground),
-        contentPadding = PaddingValues(bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // --- 1. CAMPUS GREETING BAR (Thanh chào đón & Vị trí) ---
-        item(key = "home_greeting") {
-            CampusGreetingSection(
-                userName = userName,
-                userUniversity = userUniversity,
-                onChatClick = onChatClick,
-                onNotificationClick = onNotificationClick
-            )
-        }
-
-        // --- 2. BENTO QUICK HUB (Cụm Bento khám phá sinh viên) ---
-        item(key = "home_bento_hub") {
-            BentoQuickHub(
-                onFreeGiveawayClick = {
-                    selectedCategory = "🎁 Đồ 0đ"
-                    onCategoryClick("Cho tặng")
-                },
-                onDealsClick = {
-                    selectedCategory = "⚡ Deal rẻ"
-                    onCategoryClick("Giá rẻ")
-                }
-            )
-        }
-
-        // --- 3. SEARCH & CHIP FILTER BAR (Thumb-zone) ---
-        item(key = "home_search_filters") {
-            SearchAndFilterSection(
-                selectedCategory = selectedCategory,
-                onCategorySelect = { category ->
-                    selectedCategory = category
-                    onCategoryClick(category)
-                },
-                onSearchClick = onSearchClick
-            )
-        }
-
-        // --- 4. FEED HEADER ---
-        item(key = "home_feed_header") {
-            FeedHeaderSection(
-                totalItems = filteredPosts.size,
-                selectedCategory = selectedCategory
-            )
-        }
-
-        // --- 5. PRODUCTS GRID OR EMPTY STATE ---
-        if (filteredPosts.isEmpty()) {
-            item(key = "home_empty_state") {
-                HomeEmptyState(
-                    onResetFilter = { selectedCategory = "Tất cả" }
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(StuMartLightBackground),
+            contentPadding = PaddingValues(bottom = 100.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // --- 1. CAMPUS GREETING BAR (Thanh chào đón & Vị trí) ---
+            item(key = "home_greeting") {
+                CampusGreetingSection(
+                    userName = userName,
+                    userUniversity = userUniversity,
+                    onChatClick = onChatClick,
+                    onNotificationClick = onNotificationClick
                 )
             }
-        } else {
-            items(
-                items = chunkedPosts,
-                key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
-            ) { rowItems ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    for (post in rowItems) {
-                        Box(modifier = Modifier.weight(1f)) {
-                            GridPostCard(
-                                post = post,
-                                onClick = { onPostClick(post) }
-                            )
-                        }
+
+            // --- 2. BENTO QUICK HUB (Cụm Bento khám phá sinh viên) ---
+            item(key = "home_bento_hub") {
+                BentoQuickHub(
+                    onFreeGiveawayClick = {
+                        selectedCategory = "🎁 Đồ 0đ"
+                        onCategoryClick("Cho tặng")
+                    },
+                    onDealsClick = {
+                        selectedCategory = "⚡ Deal rẻ"
+                        onCategoryClick("Giá rẻ")
                     }
-                    if (rowItems.size == 1) {
-                        Spacer(modifier = Modifier.weight(1f))
+                )
+            }
+
+            // --- 3. SMART AI SEARCH & CHIP FILTER BAR (Thumb-zone) ---
+            item(key = "home_search_filters") {
+                SearchAndFilterSection(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = { searchQuery = it },
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = { category ->
+                        selectedCategory = category
+                        onCategoryClick(category)
+                    },
+                    onOpenAISearch = { showAISearchDialog = true }
+                )
+            }
+
+            // --- 4. FEED HEADER ---
+            item(key = "home_feed_header") {
+                FeedHeaderSection(
+                    totalItems = filteredPosts.size,
+                    selectedCategory = selectedCategory
+                )
+            }
+
+            // --- 5. PRODUCTS GRID OR EMPTY STATE ---
+            if (filteredPosts.isEmpty()) {
+                item(key = "home_empty_state") {
+                    HomeEmptyState(
+                        onResetFilter = {
+                            selectedCategory = "Tất cả"
+                            searchQuery = ""
+                        }
+                    )
+                }
+            } else {
+                items(
+                    items = chunkedPosts,
+                    key = { row -> row.firstOrNull()?.id ?: row.hashCode() }
+                ) { rowItems ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        for (post in rowItems) {
+                            Box(modifier = Modifier.weight(1f)) {
+                                GridPostCard(
+                                    post = post,
+                                    onClick = { onPostClick(post) }
+                                )
+                            }
+                        }
+                        if (rowItems.size == 1) {
+                            Spacer(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
+        }
+
+        if (showAISearchDialog) {
+            AISearchDialog(
+                onDismiss = { showAISearchDialog = false },
+                onAISearchSubmit = { _, promptQuery ->
+                    showAISearchDialog = false
+                    if (promptQuery.isNotBlank()) {
+                        searchQuery = promptQuery
+                    }
+                }
+            )
         }
     }
 }
@@ -466,13 +508,15 @@ private fun BentoQuickHub(
 }
 
 /**
- * 3. Thanh Tìm Kiếm & Hàng Chip Danh Mục (Thumb-Zone)
+ * 3. Thanh Tìm Kiếm Thông Minh AI & Hàng Chip Gợi Ý / Danh Mục
  */
 @Composable
 private fun SearchAndFilterSection(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     selectedCategory: String,
     onCategorySelect: (String) -> Unit,
-    onSearchClick: () -> Unit
+    onOpenAISearch: () -> Unit
 ) {
     val categories = listOf(
         "Tất cả",
@@ -486,50 +530,170 @@ private fun SearchAndFilterSection(
         "📦 Khác"
     )
 
+    val aiRecommendations = listOf(
+        "📚 Sách C++ / Giải tích",
+        "💻 Laptop sinh viên < 5tr",
+        "🛋️ Đồ KTX giá hời",
+        "🎧 Tai nghe Bluetooth",
+        "👕 Áo Blouse Bách Khoa"
+    )
+
     Column(modifier = Modifier.fillMaxWidth()) {
-        // Thanh tìm kiếm đặt trong tầm ngón cái
+        // --- Thanh Tìm Kiếm Thông Minh AI ---
         Surface(
-            onClick = onSearchClick,
-            shape = RoundedCornerShape(22.dp),
+            shape = RoundedCornerShape(24.dp),
             color = Color.White,
-            border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
-            shadowElevation = 1.dp,
+            border = BorderStroke(1.5.dp, StuMartGreen.copy(alpha = 0.6f)),
+            shadowElevation = 2.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .height(48.dp)
-                .semantics {
-                    role = Role.Button
-                    contentDescription = "Tìm kiếm đồ dùng, giáo trình, phòng trọ"
-                }
+                .height(52.dp)
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(horizontal = 16.dp),
+                    .padding(horizontal = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Search,
-                    contentDescription = null,
-                    tint = StuMartTextGray,
+                    contentDescription = "Search Icon",
+                    tint = StuMartGreen,
                     modifier = Modifier.size(20.dp)
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "Tìm giáo trình, laptop, đồ KTX...",
-                    color = StuMartTextGray,
-                    fontSize = 13.sp,
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Input nhập liệu tìm kiếm
+                TextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    placeholder = {
+                        Text(
+                            text = "✨ Tìm AI / Sách, Laptop, Đồ KTX...",
+                            color = StuMartTextGray,
+                            fontSize = 13.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    },
+                    singleLine = true,
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = Color.Transparent,
+                        unfocusedContainerColor = Color.Transparent,
+                        disabledContainerColor = Color.Transparent,
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        focusedTextColor = StuMartTextDark,
+                        unfocusedTextColor = StuMartTextDark
+                    ),
                     modifier = Modifier.weight(1f)
                 )
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(StuMartYellow.copy(alpha = 0.35f)),
-                    contentAlignment = Alignment.Center
+
+                // Nút xóa từ khóa nếu đã nhập
+                if (searchQuery.isNotEmpty()) {
+                    IconButton(
+                        onClick = { onSearchQueryChange("") },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Clear search",
+                            tint = StuMartTextGray,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(4.dp))
+                }
+
+                // Nút "AI Search / Chụp Ảnh AI"
+                Surface(
+                    onClick = onOpenAISearch,
+                    shape = RoundedCornerShape(16.dp),
+                    color = StuMartGreen,
+                    modifier = Modifier.height(36.dp)
                 ) {
-                    Text("🦆", fontSize = 14.sp)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.PhotoCamera,
+                            contentDescription = "AI Camera Search",
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "AI Search",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // --- Hàng Gợi Ý Thông Minh AI (Smart AI Tagging Chips) ---
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = StuMartYellow.copy(alpha = 0.25f),
+                border = BorderStroke(1.dp, StuMartYellow)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "AI Recommendation",
+                        tint = StuMartOrange,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "AI Gợi ý:",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = StuMartOrange
+                    )
+                }
+            }
+
+            aiRecommendations.forEach { tag ->
+                Surface(
+                    onClick = {
+                        val keyword = tag.replace(Regex("^[\\p{So}\\p{Cn}]\\s*"), "").trim()
+                        onSearchQueryChange(keyword)
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    color = Color.White,
+                    border = BorderStroke(1.dp, Color(0xFFE5E7EB)),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Box(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = tag,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = StuMartTextDark
+                        )
+                    }
                 }
             }
         }
@@ -571,6 +735,205 @@ private fun SearchAndFilterSection(
             }
         }
     }
+}
+
+/**
+ * Dialog Tìm kiếm bằng AI & Hình ảnh (Smart Recommendation & AI Tagging)
+ * Sẵn sàng kết nối với API AI Image / Prompt Search của bạn sau này.
+ */
+@Composable
+fun AISearchDialog(
+    onDismiss: () -> Unit,
+    onAISearchSubmit: (selectedUri: Uri?, prompt: String) -> Unit
+) {
+    val context = LocalContext.current
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var promptQuery by remember { mutableStateOf("") }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent(),
+        onResult = { uri -> selectedImageUri = uri }
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("🤖", fontSize = 22.sp)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "AI Visual Search & Tagging",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = StuMartGreen
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Tải ảnh sản phẩm/giáo trình hoặc nhập yêu cầu để AI phân tích & gợi ý món đồ phù hợp nhất.",
+                    fontSize = 13.sp,
+                    color = StuMartTextGray
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Khung tải ảnh bằng AI
+                Text("1. Chọn ảnh món đồ cần tìm", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(130.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(StuMartLightBackground)
+                        .clickable { photoPickerLauncher.launch("image/*") },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (selectedImageUri != null) {
+                        AsyncImage(
+                            model = selectedImageUri,
+                            contentDescription = "Selected Search Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(8.dp)
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .clickable { selectedImageUri = null },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("×", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Canvas(modifier = Modifier.matchParentSize()) {
+                            drawRoundRect(
+                                color = StuMartGreen,
+                                style = Stroke(
+                                    width = 2.dp.toPx(),
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 12f), 0f)
+                                ),
+                                cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx())
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Outlined.PhotoCamera,
+                                contentDescription = null,
+                                tint = StuMartGreen,
+                                modifier = Modifier.size(32.dp)
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "Bấm để chọn ảnh từ thư viện",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = StuMartGreen
+                            )
+                            Text(
+                                text = "AI sẽ quét & tự động phân tích tag",
+                                fontSize = 10.sp,
+                                color = StuMartTextGray
+                            )
+                        }
+                    }
+                }
+
+                if (selectedImageUri != null) {
+                    Spacer(modifier = Modifier.height(10.dp))
+                    // Mô phỏng AI Tagging
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = StuMartGreenContainer
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✨ AI Tagging:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = StuMartGreen)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("#Giaotrinh #BachKhoa #DienTu", fontSize = 11.sp, color = StuMartGreen)
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Ô nhập câu hỏi / AI Prompt
+                Text("2. Nhập mô tả / Câu hỏi cho AI", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
+                Spacer(modifier = Modifier.height(6.dp))
+
+                OutlinedTextField(
+                    value = promptQuery,
+                    onValueChange = { promptQuery = it },
+                    placeholder = {
+                        Text(
+                            text = "VD: Tìm sách đúng tái bản mới nhất, giá rẻ dưới 100k...",
+                            fontSize = 12.sp,
+                            color = Color.Gray
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedContainerColor = Color.White,
+                        focusedContainerColor = Color.White,
+                        focusedBorderColor = StuMartGreen
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "💡 Chú thích: Bạn có thể đưa API AI Visual Search của mình vào callback khi sẵn sàng.",
+                    fontSize = 10.sp,
+                    color = StuMartTextGray
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (selectedImageUri == null && promptQuery.isBlank()) {
+                        Toast.makeText(context, "Vui lòng chọn ảnh hoặc nhập mô tả", Toast.LENGTH_SHORT).show()
+                        return@Button
+                    }
+                    
+                    /*
+                     * =========================================================================
+                     * TODO API: ĐÂY LÀ NƠI BẠN TÍCH HỢP GỌI API AI SEARCH & SMART RECOMMENDATION
+                     * Ví dụ:
+                     * val result = AIService.searchByImageAndPrompt(selectedImageUri, promptQuery)
+                     * =========================================================================
+                     */
+                    Toast.makeText(context, "Đã quét AI thành công!", Toast.LENGTH_SHORT).show()
+                    onAISearchSubmit(selectedImageUri, promptQuery)
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = StuMartGreen),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("🚀 Phân tích & Tìm kiếm", fontWeight = FontWeight.Bold, color = Color.White)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy", color = Color.Gray)
+            }
+        },
+        containerColor = Color.White,
+        shape = RoundedCornerShape(20.dp)
+    )
 }
 
 /**
@@ -731,26 +1094,47 @@ fun GridPostCard(
 
                 Spacer(modifier = Modifier.height(6.dp))
 
-                // Dòng người bán & vị trí giao dịch
+                // Dòng người bán & danh mục
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Icon(
-                        imageVector = Icons.Outlined.Person,
-                        contentDescription = null,
-                        tint = StuMartTextGray,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = post.sellerName ?: "Sinh viên",
-                        fontSize = 11.sp,
-                        color = StuMartTextGray,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f)
-                    )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Person,
+                            contentDescription = null,
+                            tint = StuMartTextGray,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = post.sellerName ?: "Sinh viên",
+                            fontSize = 11.sp,
+                            color = StuMartTextGray,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(StuMartGreenContainer)
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = post.category ?: "Khác",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = StuMartGreen,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))

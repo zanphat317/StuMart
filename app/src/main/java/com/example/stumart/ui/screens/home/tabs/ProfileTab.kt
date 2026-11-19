@@ -23,6 +23,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.stumart.data.repository.PostRepository
 import com.example.stumart.data.supabase.Post
+import com.example.stumart.data.supabase.SupabaseClient
+import io.github.jan.supabase.gotrue.auth
 import com.example.stumart.ui.theme.*
 
 @Composable
@@ -30,10 +32,22 @@ fun ProfileTab(
     userName: String,
     userUniversity: String,
     onUniversityChange: (String) -> Unit,
+    onPostClick: (Post) -> Unit = {},
+    onEditPostClick: (Post) -> Unit = {},
+    onNewPostClick: () -> Unit = {},
     onLogout: () -> Unit = {}
 ) {
     var showEditProfileDialog by remember { mutableStateOf(false) }
     val posts by PostRepository.posts.collectAsState()
+
+    val currentUserId = remember { SupabaseClient.client.auth.currentUserOrNull()?.id }
+    val myPosts = remember(posts, currentUserId, userName) {
+        if (!currentUserId.isNullOrBlank()) {
+            posts.filter { it.userId == currentUserId }
+        } else {
+            posts.filter { it.userId == null || it.sellerName == userName }
+        }
+    }
 
     if (showEditProfileDialog) {
         EditProfileDialog(
@@ -148,7 +162,7 @@ fun ProfileTab(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            StatBox(icon = "📦", number = "${posts.size}", label = "Đã bán")
+                            StatBox(icon = "📦", number = "${myPosts.size}", label = "Đã bán")
                             StatBox(icon = "🛒", number = "14", label = "Đã mua")
                             StatBox(icon = "🏆", number = "98%", label = "Uy tín")
                         }
@@ -190,13 +204,14 @@ fun ProfileTab(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("📋", fontSize = 20.sp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Tin đăng của tôi (${posts.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
+                            Text("Tin đăng của tôi (${myPosts.size})", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = StuMartTextDark)
                         }
                         
                         Box(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(StuMartGreen)
+                                .clickable { onNewPostClick() }
                                 .padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text("+ Đăng mới", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -207,7 +222,7 @@ fun ProfileTab(
             }
 
             // 4. Lưới sản phẩm (Tin đăng của tôi)
-            val chunkedProducts = posts.chunked(2)
+            val chunkedProducts = myPosts.chunked(2)
             
             items(chunkedProducts.size) { rowIndex ->
                 val rowItems = chunkedProducts[rowIndex]
@@ -217,7 +232,11 @@ fun ProfileTab(
                 ) {
                     for (post in rowItems) {
                         Box(modifier = Modifier.weight(1f)) {
-                            MyProductCard(post)
+                            MyProductCard(
+                                post = post,
+                                onClick = { onPostClick(post) },
+                                onEditClick = { onEditPostClick(post) }
+                            )
                         }
                     }
                     if (rowItems.size == 1) {
@@ -365,13 +384,18 @@ fun EditProfileDialog(
 }
 
 @Composable
-fun MyProductCard(post: Post) {
+fun MyProductCard(
+    post: Post,
+    onClick: () -> Unit = {},
+    onEditClick: () -> Unit = {}
+) {
     val formattedPrice = if (post.price >= 1000000) "${post.price / 1000000} triệu đ" else "${post.price.toInt()}đ"
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(200.dp),
+            .height(200.dp)
+            .clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         shape = RoundedCornerShape(12.dp)
@@ -425,8 +449,28 @@ fun MyProductCard(post: Post) {
                 
                 Spacer(modifier = Modifier.weight(1f))
                 
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text("🏷️ ${post.type}", fontSize = 10.sp, color = StuMartTextGray)
+
+                    Surface(
+                        onClick = onEditClick,
+                        shape = RoundedCornerShape(8.dp),
+                        color = StuMartGreenContainer,
+                        modifier = Modifier.height(26.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("✏️", fontSize = 10.sp)
+                            Spacer(modifier = Modifier.width(3.dp))
+                            Text("Sửa", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = StuMartGreen)
+                        }
+                    }
                 }
             }
         }

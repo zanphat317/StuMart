@@ -44,12 +44,19 @@ fun HomeScreen(
 ) {
     var currentRoute by remember { mutableStateOf(HomeRoute.Home) }
     var showPostBottomSheet by remember { mutableStateOf(false) }
+    var postToEdit by remember { mutableStateOf<Post?>(null) }
     var selectedPost by remember { mutableStateOf<Post?>(null) }
 
     if (selectedPost != null) {
         ProductDetailScreen(
             post = selectedPost!!,
-            onBackClick = { selectedPost = null }
+            onBackClick = { selectedPost = null },
+            onEditClick = { post ->
+                val target = post
+                selectedPost = null
+                postToEdit = target
+                showPostBottomSheet = true
+            }
         )
         return
     }
@@ -59,7 +66,10 @@ fun HomeScreen(
             CustomBottomNavigation(
                 currentRoute = currentRoute,
                 onRouteSelected = { currentRoute = it },
-                onPostClick = { showPostBottomSheet = true }
+                onPostClick = {
+                    postToEdit = null
+                    showPostBottomSheet = true
+                }
             )
         },
         containerColor = StuMartLightBackground
@@ -77,6 +87,15 @@ fun HomeScreen(
                     userName = userName,
                     userUniversity = userUniversity,
                     onUniversityChange = onUniversityChange,
+                    onPostClick = { selectedPost = it },
+                    onEditPostClick = { post ->
+                        postToEdit = post
+                        showPostBottomSheet = true
+                    },
+                    onNewPostClick = {
+                        postToEdit = null
+                        showPostBottomSheet = true
+                    },
                     onLogout = onLogout
                 )
             }
@@ -84,14 +103,23 @@ fun HomeScreen(
     }
 
     if (showPostBottomSheet) {
-        // Hiển thị giao diện Đăng bán (Bottom Sheet)
+        // Hiển thị giao diện Đăng bán / Chỉnh sửa (Bottom Sheet)
         @OptIn(ExperimentalMaterial3Api::class)
         ModalBottomSheet(
-            onDismissRequest = { showPostBottomSheet = false },
+            onDismissRequest = {
+                showPostBottomSheet = false
+                postToEdit = null
+            },
             containerColor = StuMartLightBackground,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
         ) {
-            PostBottomSheetContent(onDismiss = { showPostBottomSheet = false })
+            PostBottomSheetContent(
+                postToEdit = postToEdit,
+                onDismiss = {
+                    showPostBottomSheet = false
+                    postToEdit = null
+                }
+            )
         }
     }
 
